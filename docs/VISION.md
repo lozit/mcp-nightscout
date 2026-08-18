@@ -81,8 +81,10 @@ references, and never name a third-party repository as vulnerable.
 ## V1 acceptance criteria
 
 > **État au 2026-08-18** — 1 ✅ · 2 ✅ · 3 ✅ (unitaire ; aucun outil ne prend encore d'identifiant)
-> · 4 ⚠️ partiel (éprouvé sur `device`, `notes` inaccessible) · 5 ⛔ ouvert (les agrégats n'existent
-> pas ; la fidélité de la lecture sous-jacente est acquise) · 6 ✅ · 7 ✅ · 8 ✅
+> · 4 ⚠️ partiel (éprouvé sur `device`, `notes` inaccessible) · **5 ✅ vérifié à la main contre le
+> rapport Distribution de Nightscout, journée du 2026-08-17 : moyenne, médiane et écart-type
+> concordent à l'arrondi ; les deux écarts restants sont des conventions d'inclusivité, chiffrées
+> et documentées ([ADR 0004](decisions/0004-aggregation-method.md))** · 6 ✅ · 7 ✅ · 8 ✅
 
 1. The server refuses to start on a non-`https://` URL, and on an admin-secret credential.
 2. A real upstream HTTP failure is triggered and the token appears **nowhere** — not in the

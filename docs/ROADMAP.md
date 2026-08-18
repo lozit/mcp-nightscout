@@ -23,8 +23,8 @@ rather than by patch.
 - **Why it was first, and urgent**: nothing was testable against real payloads without it, and
   Nightscout **does not backfill** — it only holds history from its own install date, so every
   day of delay was a day of history permanently lost.
-- **Status**: **Shipped** (2026-08-18) — `<instance>`, version 15.0.7, `apiEnabled`,
-  anonymous reads refused, a `readable` token issued.
+- **Status**: **Shipped** (2026-08-18) — instance en ligne, version 15.0.7, `apiEnabled`,
+  lectures anonymes refusées, token `readable` émis.
 
 ### Milestone 1 — Decide v1 vs v3
 
@@ -75,7 +75,10 @@ rather than by patch.
 - **Scope**: mean, TIR, CV, GMI — server-side, bounded, deterministic.
 - **Exit criteria**: each one **matches Nightscout's own report over the same window, checked by
   hand**. Units resolved from the profile, not assumed.
-- **Status**: Upcoming.
+- **Status**: **Shipped** (2026-08-18). Vérifié à la main sur la journée du 2026-08-17 : moyenne,
+  médiane et écart-type concordent à l'arrondi. Les deux écarts subsistants sont des conventions
+  d'inclusivité (la valeur 180 en cible, la borne de fin de journée exclusive), chiffrées dans
+  [ADR 0004](decisions/0004-aggregation-method.md).
 
 ## Out of scope (for now)
 

@@ -132,3 +132,50 @@ model has other tools.
 **When to apply**: whenever the answer to a security question is "but we're read-only". Ask
 whether the claim addresses the vector or only the consequence. Free-text neutralization is a
 separate, still-required control.
+
+## Deux filtres sur le même champ ne survivent pas à une query-string — un seul, et borner localement
+
+**Why**: la fenêtre d'agrégation combinait `date$gte` et `date$lt` pour cadrer une journée.
+Résultat sur l'instance réelle : 2243 relevés rendus pour une journée qui en compte 288, soit
+7,8 jours d'historique. La seconde condition annule la première, et **aucune erreur n'est levée** —
+seulement une moyenne, un TIR et un écart-type faux et parfaitement plausibles. Les tests
+unitaires passaient : ils mockaient l'amont, donc ils testaient ma croyance sur le filtrage, pas
+le filtrage.
+
+Ce qui a désigné le coupable n'est pas un debugger mais une arithmétique de coin de table :
+2243 relevés × 300 s d'intervalle médian = 7,8 jours. La sortie contenait déjà la preuve.
+
+**When to apply**: dès qu'une requête porte plus d'une condition sur le même champ. N'en envoyer
+qu'une, et appliquer les autres bornes **localement sur les documents reçus** — y compris celle
+que le serveur est censé avoir appliquée. Le filtrage amont est un moyen de réduire le volume,
+jamais une garantie de justesse. Corollaire de pagination : parcourir en **ascendant**, ce qui
+place les insertions concurrentes en fin de parcours où elles sont inoffensives.
+
+## Ne jamais borner un indicateur d'anomalie du côté qui le rend rassurant
+
+**Why**: la couverture était calculée `Math.min(1, obtenus / attendus)`. Sur la fenêtre 7,8 fois
+trop large ci-dessus, elle affichait donc **« 100 % »** — la valeur la plus rassurante possible,
+au moment précis où les données étaient les plus fausses. Le plafond avait été écrit pour éviter
+« 780 % », jugé laid. Il transformait un signal d'alarme en satisfecit.
+
+**When to apply**: à tout ratio, score ou pourcentage qui sert d'indicateur de confiance. Se
+demander ce que cache le clamp, et de quel côté. Dépasser 100 % de couverture attendue n'est
+jamais bénin : c'est un second uploader, un backfill, ou une fenêtre qui déborde. Afficher la
+valeur réelle et l'assortir d'un avertissement, plutôt que la rendre présentable.
+
+## Comparer à une source indépendante trouve ce qu'aucun test unitaire ne trouvera
+
+**Why**: les deux défauts ci-dessus ont survécu à une suite de tests verte parce que les tests
+mockaient l'amont — ils vérifiaient que le code faisait ce que je croyais, et je me trompais sur
+ce qu'il fallait croire. Ils ont été trouvés en mettant côte à côte notre sortie et le rapport
+*Distribution* de Nightscout sur la même journée.
+
+Le même exercice a aussi validé le reste : moyenne, médiane et écart-type concordent à l'arrondi,
+et les deux écarts restants se chiffrent exactement (6 relevés valant précisément 180 pour l'écart
+de TIR, un relevé de frontière pour l'écart de comptage). Un écart *expliqué au relevé près* est
+une preuve ; un écart « faible » ne l'est pas.
+
+**When to apply**: pour tout calcul dont le résultat est un nombre plausible en cas d'erreur —
+agrégats, statistiques, conversions d'unité, fenêtres temporelles. Trouver une source
+indépendante et comparer à la main avant de déclarer que ça marche. Et quand un écart subsiste,
+le chiffrer jusqu'à ce qu'il s'explique : « proche » n'est pas une conclusion.

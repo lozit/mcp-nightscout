@@ -36,6 +36,7 @@ third-party repository as vulnerable. `0001` is the model to follow.
 | [0001](0001-language-and-stack.md) | Language and stack: TypeScript on the official MCP SDK | Accepted | 2026-08-18 |
 | [0002](0002-nightscout-api-v3.md) | Talk to Nightscout over API v3 | Accepted | 2026-08-18 |
 | [0003](0003-dependency-majors.md) | Dependency majors: TypeScript 7, zod 4, @types/node 26 | Accepted | 2026-08-18 |
+| [0004](0004-aggregation-method.md) | Méthode d'agrégation glycémique | Accepted | 2026-08-18 |
 
 ## Decisions closed by 0001 — reopening requires a new ADR
 

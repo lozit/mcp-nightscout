@@ -9,6 +9,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `nightscout_glucose_summary` — agrégats déterministes côté serveur : moyenne, médiane,
+  écart-type, CV, GMI et les cinq bandes du consensus, sur fenêtre glissante ou jour calendaire
+  cadré dans le fuseau du profil. Vérifié à la main contre le rapport Nightscout
+  ([ADR 0004](docs/decisions/0004-aggregation-method.md))
+- Pagination par fenêtre temporelle (`readWindow`), ascendante et à filtre unique, pour agréger
+  au-delà du plafond de 1000 documents par requête
 - `nightscout_recent_glucose` — premier outil de lecture, validé contre une instance réelle :
   unités résolues depuis le profil actif, relevés non-CGM écartés et comptés, champ `device`
   neutralisé et balisé, fenêtre plafonnée à 24 h
@@ -31,6 +37,13 @@ versions follow [Semantic Versioning](https://semver.org/).
 ### Removed
 
 ### Fixed
+- Les valeurs `sgv` étaient publiées brutes sous l'étiquette d'unité du profil. Nightscout stocke
+  toujours en mg/dL : sur un profil en mmol/L, l'outil rendait des valeurs fausses d'un facteur 18
+  et parfaitement crédibles
+- La fenêtre d'agrégation débordait sur tout l'historique : deux conditions sur le même champ
+  (`date$gte` et `date$lt`) annulent la première côté amont
+- La couverture était plafonnée à 1, ce qui affichait « 100 % » sur une fenêtre 7,8 fois trop
+  large. Une sur-couverture est désormais signalée comme l'anomalie qu'elle est
 
 ### Security
 - Secret scrubbing is two-level (registered literals + patterns) and applied at

@@ -9,10 +9,9 @@ This file differs from the long-term roadmap (`docs/ROADMAP.md`): it describes w
 
   `docs/SECURITY.md` § Incidents survenus.
 
-- [ ] **Milestone 5 — agrégats vérifiables** (moyenne, TIR, CV, GMI). C'est là que se joue le
-  critère d'acceptation n°5 : chaque agrégat doit **égaler le rapport Nightscout sur la même
-  fenêtre, vérifié à la main**. La fidélité de la lecture sous-jacente est acquise (2026-08-18) ;
-  ce qui reste à prouver est l'arithmétique, pas la donnée.
+- [ ] **Milestone 4 — élargir la surface d'outils** (~10 en lecture). Deux existent. La
+  plomberie, les unités, la pagination et la neutralisation sont posées et éprouvées ; ce qui
+  reste est de l'ajout d'outils, pas de la fondation.
 
 ## Up next
 
@@ -41,6 +40,18 @@ This file differs from the long-term roadmap (`docs/ROADMAP.md`): it describes w
   from the active store entry and fail loudly on disagreement until settled.
 
 ## Recently done
+
+- [x] **Milestone 5 clos — agrégats vérifiés contre Nightscout** (2026-08-18) — `nightscout_glucose_summary` :
+  moyenne, médiane, écart-type (n-1), CV, GMI et les cinq bandes du consensus, sur fenêtre
+  glissante ou **jour calendaire cadré dans le fuseau du profil**. Comparé à la main au rapport
+  *Distribution* du 2026-08-17 : 288 vs 289 relevés, 159 vs 159,6 de moyenne, 142 vs 142,5 de
+  médiane, 44 vs 43,8 d'écart-type. Les écarts restants sont des conventions d'inclusivité,
+  chiffrées dans [ADR 0004](docs/decisions/0004-aggregation-method.md). **131 tests.**
+- [x] **Deux défauts trouvés par cette comparaison, invisibles aux tests unitaires** (2026-08-18) —
+  la fenêtre débordait sur tout l'historique (`date$gte` + `date$lt` sur le même champ annule la
+  première condition : 7,8 jours rendus pour 1 demandé), et la couverture plafonnée à 1 affichait
+  « 100 % » là-dessus. Pagination réécrite en ascendant à filtre unique, bornes vérifiées
+  localement, couverture non bornée avec alerte de densité.
 
 - [x] **Milestone 3 clos — chaîne validée contre l'instance réelle** (2026-08-18) — 36 relevés
   sur 3 h (un toutes les 5 min), unité `mg/dL` résolue depuis le profil actif, `device` balisé
