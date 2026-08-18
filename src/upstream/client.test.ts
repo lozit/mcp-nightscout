@@ -124,3 +124,128 @@ describe("contrat amont", () => {
     }
   });
 });
+
+describe("readWindow — pagination ascendante à filtre unique", () => {
+  /** Page de n documents dont `date` croît depuis `from`, pas de plus. */
+  const page = (from: number, n: number, step = 300_000) =>
+    Array.from({ length: n }, (_, i) => ({ date: from + i * step, sgv: 120 }));
+
+  it("n'envoie jamais deux filtres sur le champ temporel", async () => {
+    // Le défaut trouvé sur l'instance réelle : `date$gte` + `date$lt` ensemble
+    // faisaient remonter tout l'historique au lieu de la fenêtre demandée.
+    const { client, readFetch } = makeClient([
+      () => json({ status: 200, result: page(1000, 5) }),
+    ]);
+    await client.readWindow("entries", {
+      timeField: "date",
+      since: 1000,
+      until: 9_999_999,
+      maxDocuments: 10_000,
+    });
+    const url = String((readFetch.mock.calls[0] as unknown[])[0]);
+    expect(url).toContain("date%24gte");
+    expect(url).not.toContain("date%24lt");
+    expect(url).toContain("sort=date"); // ascendant
+  });
+
+  it("applique la borne haute localement et s'arrête dès qu'elle est franchie", async () => {
+    const { client } = makeClient([
+      () => json({ status: 200, result: page(1000, MAX_LIMIT) }),
+    ]);
+    const cutoff = 1000 + 10 * 300_000;
+    const { docs } = await client.readWindow("entries", {
+      timeField: "date",
+      since: 1000,
+      until: cutoff,
+      maxDocuments: 10_000,
+    });
+    expect(docs).toHaveLength(10); // strictement avant la borne
+    for (const d of docs) expect((d as { date: number }).date).toBeLessThan(cutoff);
+  });
+
+  it("enchaîne les pages en remontant la borne basse", async () => {
+    const { client, readFetch } = makeClient([
+      () => json({ status: 200, result: page(1000, MAX_LIMIT) }),
+      () => json({ status: 200, result: page(1000 + MAX_LIMIT * 300_000, 7) }),
+    ]);
+    const { docs, truncated } = await client.readWindow("entries", {
+      timeField: "date",
+      since: 1000,
+      maxDocuments: 10_000,
+    });
+    expect(docs).toHaveLength(MAX_LIMIT + 7);
+    expect(truncated).toBe(false);
+    // La deuxième requête part au-delà du dernier document de la première.
+    const second = decodeURIComponent(String((readFetch.mock.calls[1] as unknown[])[0]));
+    expect(second).toContain(`date$gte=${1000 + (MAX_LIMIT - 1) * 300_000 + 1}`);
+  });
+
+  it("s'arrête au plafond de documents et le signale", async () => {
+    const { client } = makeClient([
+      () => json({ status: 200, result: page(1000, MAX_LIMIT) }),
+      () => json({ status: 200, result: page(1_000_000_000, MAX_LIMIT) }),
+      () => json({ status: 200, result: page(2_000_000_000, MAX_LIMIT) }),
+    ]);
+    const { docs, truncated } = await client.readWindow("entries", {
+      timeField: "date",
+      since: 0,
+      maxDocuments: 1500,
+    });
+    expect(truncated).toBe(true);
+    expect(docs.length).toBeGreaterThanOrEqual(1500);
+  });
+
+  it("ne boucle pas si la borne ne progresse pas", async () => {
+    const same = () => json({ status: 200, result: page(1000, MAX_LIMIT, 0) });
+    const { client, readFetch } = makeClient([same, same, same, same]);
+    const { docs } = await client.readWindow("entries", {
+      timeField: "date",
+      since: 1000,
+      maxDocuments: 100_000,
+    });
+    expect(readFetch.mock.calls.length).toBeLessThanOrEqual(2);
+    expect(docs.length).toBe(MAX_LIMIT);
+  });
+
+  it("rend une fenêtre vide sans erreur", async () => {
+    const { client } = makeClient([() => json({ status: 200, result: [] })]);
+    const { docs, truncated } = await client.readWindow("entries", {
+      timeField: "date",
+      since: 0,
+      maxDocuments: 100,
+    });
+    expect(docs).toHaveLength(0);
+    expect(truncated).toBe(false);
+  });
+});
+
+describe("readWindow — les bornes sont vérifiées localement", () => {
+  const page = (from: number, n: number, step = 300_000) =>
+    Array.from({ length: n }, (_, i) => ({ date: from + i * step, sgv: 120 }));
+
+  it("écarte ce qui précède la borne basse même si l'amont l'a laissé passer", async () => {
+    // Le filtre serveur est un moyen, pas une garantie : un agrégat calculé sur
+    // une fenêtre plus large que demandée ne lève rien, il rend un faux crédible.
+    const { client } = makeClient([() => json({ status: 200, result: page(0, 100) })]);
+    const { docs } = await client.readWindow("entries", {
+      timeField: "date",
+      since: 50 * 300_000,
+      maxDocuments: 10_000,
+    });
+    expect(docs).toHaveLength(50);
+    for (const d of docs) {
+      expect((d as { date: number }).date).toBeGreaterThanOrEqual(50 * 300_000);
+    }
+  });
+
+  it("écarte ce qui dépasse la borne haute", async () => {
+    const { client } = makeClient([() => json({ status: 200, result: page(0, 100) })]);
+    const { docs } = await client.readWindow("entries", {
+      timeField: "date",
+      since: 0,
+      until: 30 * 300_000,
+      maxDocuments: 10_000,
+    });
+    expect(docs).toHaveLength(30);
+  });
+});

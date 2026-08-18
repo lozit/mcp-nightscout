@@ -93,6 +93,101 @@ export class NightscoutClient {
     return body.result;
   }
 
+  /**
+   * Lit une fenêtre temporelle complète, en paginant.
+   *
+   * Un agrégat sur 14 jours porte sur ~4000 relevés, bien au-delà de `MAX_LIMIT`.
+   * Les lire tous ne viole pas la contrainte #5 : ce qu'elle interdit, c'est que
+   * des milliers de points atteignent le **modèle**, pas qu'on les lise pour en
+   * tirer dix nombres côté serveur.
+   *
+   * **Un seul filtre à la fois sur le champ temporel.** Une première version
+   * combinait `date$gte` et `date$lt` pour cadrer la fenêtre ; en pratique la
+   * seconde condition écrase la première et la lecture remonte tout l'historique
+   * — constaté sur l'instance réelle, où une journée demandée rendait 7,8 jours
+   * de données sans qu'aucune erreur ne soit levée. On pagine donc en
+   * **ascendant** avec `date$gte` seul, en remontant la borne basse à chaque
+   * page, et la borne haute est appliquée **ici**, sur les documents reçus.
+   *
+   * Le sens ascendant a un second mérite : les insertions concurrentes tombent
+   * en fin de parcours, là où elles sont inoffensives. En descendant, elles
+   * décalent tout ce qui reste à lire.
+   */
+  async readWindow(
+    collection: string,
+    options: {
+      readonly timeField: string;
+      readonly since: number;
+      /** Borne haute exclusive. Absente = jusqu'au plus récent. */
+      readonly until?: number;
+      readonly maxDocuments: number;
+    },
+  ): Promise<{ readonly docs: readonly unknown[]; readonly truncated: boolean }> {
+    const docs: unknown[] = [];
+    let lowerBound = options.since;
+    let truncated = false;
+    let reachedUpperBound = false;
+
+    for (;;) {
+      const page = await this.read(collection, {
+        limit: MAX_LIMIT,
+        params: {
+          [`${options.timeField}$gte`]: lowerBound,
+          sort: options.timeField, // ascendant
+        },
+      });
+      if (page.length === 0) break;
+
+      let maxSeen = lowerBound;
+      let kept = 0;
+      for (const doc of page) {
+        const t = (doc as Record<string, unknown>)[options.timeField];
+        if (typeof t !== "number") continue;
+        if (t > maxSeen) maxSeen = t;
+
+        // Les DEUX bornes sont vérifiées ici, y compris la borne basse que le
+        // serveur est censé avoir appliquée. Ce n'est pas de la paranoïa
+        // gratuite : on a déjà constaté un filtre amont qui ne filtrait pas ce
+        // qu'on croyait, et un agrégat calculé sur une fenêtre plus large que
+        // demandée ne lève aucune erreur — il rend un nombre faux et crédible.
+        if (t < options.since) continue;
+        if (options.until !== undefined && t >= options.until) {
+          reachedUpperBound = true;
+          continue;
+        }
+        docs.push(doc);
+        kept += 1;
+      }
+
+      if (reachedUpperBound) break;
+      if (page.length < MAX_LIMIT) break; // page incomplète = fin des données
+
+      if (maxSeen <= lowerBound) {
+        // La borne n'a pas progressé : continuer rejouerait la même page.
+        logger.warn("pagination stopped: time cursor did not advance", {
+          collection,
+          kept,
+        });
+        break;
+      }
+      lowerBound = maxSeen + 1;
+
+      if (docs.length >= options.maxDocuments) {
+        truncated = true;
+        break;
+      }
+    }
+
+    if (truncated) {
+      logger.warn("window truncated at the document cap", {
+        collection,
+        cap: options.maxDocuments,
+        collected: docs.length,
+      });
+    }
+    return { docs, truncated };
+  }
+
   /** GET authentifié, avec un unique ré-échange de JWT sur 401. */
   async #getJson(path: string, search: URLSearchParams): Promise<unknown> {
     let response = await this.#send(path, search, await this.#auth.getJwt());
