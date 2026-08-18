@@ -6,6 +6,7 @@ import {
   scrubString,
   scrubValue,
 } from "./secrets.js";
+import { FAKE_OPAQUE_BLOB, FAKE_TOKEN, fakeJwt } from "../testing/fixtures.js";
 
 afterEach(() => _resetSecrets());
 
@@ -14,11 +15,11 @@ afterEach(() => _resetSecrets());
  * whole reason the value-registration half of constraint #3 exists: the house
  * pattern-only redactor uses a 32-character minimum and never fires on it.
  */
-const REAL_LENGTH_TOKEN = "claudereads-1a2b3c4d5e6f7890"; // 28 chars, same shape
+const REAL_LENGTH_TOKEN = FAKE_TOKEN; // même forme, même ordre de longueur
 
 describe("value-level scrubbing (the half a pattern-only redactor misses)", () => {
   it("scrubs a token shorter than the 32-char pattern threshold", () => {
-    const token = "abcdefghij-1a2b3c4d5e6f7890";
+    const token = FAKE_TOKEN;
     expect(token.length).toBeLessThan(32); // the finding, asserted
 
     // Sanity: the pattern-only approach genuinely does not catch it.
@@ -29,7 +30,7 @@ describe("value-level scrubbing (the half a pattern-only redactor misses)", () =
   });
 
   it("scrubs the URL-encoded form of a registered secret", () => {
-    const token = "a b+c/d-1a2b3c4d5e6f7890";
+    const token = "a b+c/d-0123456789abcdef";
     registerSecret(token);
     const encoded = encodeURIComponent(token);
     expect(encoded).not.toBe(token);
@@ -37,7 +38,7 @@ describe("value-level scrubbing (the half a pattern-only redactor misses)", () =
   });
 
   it("scrubs a doubly-encoded form", () => {
-    const token = "tok/en-1a2b3c4d5e6f7890";
+    const token = "tok/en-0123456789abcdef";
     registerSecret(token);
     const twice = encodeURIComponent(encodeURIComponent(token));
     expect(scrubString(twice)).not.toContain("tok");
@@ -49,13 +50,13 @@ describe("value-level scrubbing (the half a pattern-only redactor misses)", () =
   });
 
   it("forgets a rotated JWT so only the current one is registered", () => {
-    const oldJwt = "old-jwt-value-1a2b3c4d5e6f7890";
+    const oldJwt = fakeJwt("rotated");
     registerSecret(oldJwt);
     expect(scrubString(oldJwt)).toBe("[REDACTED]");
     forgetSecret(oldJwt);
     // The literal is gone from the registry; the generic long-blob pattern may
     // still catch it, so assert on the registry behaviour via a short value.
-    const shortish = "short-1a2b3c4d5e6f7890";
+    const shortish = "short-0123456789abcdef";
     registerSecret(shortish);
     forgetSecret(shortish);
     expect(scrubString(shortish)).toBe(shortish);
@@ -64,9 +65,11 @@ describe("value-level scrubbing (the half a pattern-only redactor misses)", () =
 
 describe("pattern-level scrubbing (defence in depth)", () => {
   it("scrubs a bearer header even if the JWT was never registered", () => {
-    const line = "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.c2lnbmF0dXJl";
+    const jwt = fakeJwt("x");
+    const payload = jwt.split(".")[1]!;
+    const line = `Authorization: Bearer ${jwt}`;
     expect(scrubString(line)).toContain("[REDACTED]");
-    expect(scrubString(line)).not.toContain("eyJzdWIiOiJ4In0");
+    expect(scrubString(line)).not.toContain(payload);
   });
 
   it("scrubs a v1 ?token= query parameter", () => {
@@ -76,8 +79,8 @@ describe("pattern-level scrubbing (defence in depth)", () => {
   });
 
   it("scrubs a bare JWT by shape", () => {
-    const jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhYmMifQ.abcdefghijklmnop";
-    expect(scrubString(`token was ${jwt}`)).not.toContain("eyJzdWIi");
+    const jwt = fakeJwt("abc");
+    expect(scrubString(`token was ${jwt}`)).not.toContain(jwt.split(".")[1]!);
   });
 });
 
@@ -132,13 +135,13 @@ describe("the last-resort blob pattern does not eat the diagnostic", () => {
   });
 
   it("still redacts a genuine long opaque credential", () => {
-    const blob = "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8";
+    const blob = FAKE_OPAQUE_BLOB;
     expect(blob.length).toBeGreaterThanOrEqual(32);
     expect(scrubString(`x-api-key ${blob}`)).toContain("[REDACTED]");
   });
 
   it("keeps the registered token scrubbed even though the blob pattern narrowed", () => {
-    const token = "guillaume-1a2b3c4d5e6f7890";
+    const token = FAKE_TOKEN;
     registerSecret(token);
     const out = scrubString(`GET https://ns.example.example/api/v2/authorization/request/${token}`);
     expect(out).not.toContain(token);

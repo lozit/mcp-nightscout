@@ -2,12 +2,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { NightscoutAuth } from "./auth.js";
 import { UpstreamContractError, UpstreamError } from "./errors.js";
 import { _resetSecrets, scrubString } from "../security/secrets.js";
+import { FAKE_TOKEN, FAKE_JWT_A, FAKE_JWT_B } from "../testing/fixtures.js";
 
 afterEach(() => _resetSecrets());
 
-const CONFIG = { baseUrl: "https://ns.example.example", token: "guillaume-1a2b3c4d5e6f7890" };
-const JWT_A = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhIn0.signature-aaaaaaaaaaaa";
-const JWT_B = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJiIn0.signature-bbbbbbbbbbbb";
+const CONFIG = { baseUrl: "https://ns.example.example", token: FAKE_TOKEN };
+const JWT_A = FAKE_JWT_A;
+const JWT_B = FAKE_JWT_B;
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -30,7 +31,7 @@ describe("échange token → JWT", () => {
   it("encode le token dans le chemin", async () => {
     const fetch = vi.fn(async () => jsonResponse({ token: JWT_A }));
     const auth = new NightscoutAuth(
-      { ...CONFIG, token: "a/../b-1a2b3c4d5e6f7890" },
+      { ...CONFIG, token: "a/../b-0123456789abcdef" },
       { fetch: fetch as unknown as typeof globalThis.fetch },
     );
     await auth.getJwt();

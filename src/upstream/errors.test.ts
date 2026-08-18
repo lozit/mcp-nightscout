@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { assertValidIdentifier, InvalidIdentifierError, UpstreamError } from "./errors.js";
+import { FAKE_OBJECT_ID, FAKE_UUID } from "../testing/fixtures.js";
 
 describe("assertValidIdentifier", () => {
   it("accepts the 24-hex ObjectId shape probed on the live instance", () => {
-    const id = "68a2b1c4d5e6f7089a1b2c3d";
+    const id = FAKE_OBJECT_ID;
     expect(id).toHaveLength(24);
     expect(assertValidIdentifier(id)).toBe(id);
   });
@@ -15,13 +16,13 @@ describe("assertValidIdentifier", () => {
   });
 
   it("rejects a slash even inside an otherwise valid-looking id", () => {
-    expect(() => assertValidIdentifier("68a2b1c4d5e6f708/9a1b2c3d")).toThrow(
+    expect(() => assertValidIdentifier("0123456789abcdef/01234567")).toThrow(
       InvalidIdentifierError,
     );
   });
 
   it("rejects a UUID — widening must be a deliberate re-probe, not a silent pass", () => {
-    expect(() => assertValidIdentifier("f47ac10b-58cc-4372-a567-0e02b2c3d479")).toThrow(
+    expect(() => assertValidIdentifier(FAKE_UUID)).toThrow(
       InvalidIdentifierError,
     );
   });

@@ -3,6 +3,7 @@ import { NightscoutAuth } from "../upstream/auth.js";
 import { NightscoutClient } from "../upstream/client.js";
 import { clampDays, DEFAULT_DAYS, glucoseSummary, MAX_DAYS } from "./summary.js";
 import { UpstreamContractError } from "../upstream/errors.js";
+import { FAKE_TOKEN, FAKE_JWT_A } from "../testing/fixtures.js";
 
 const PROFILE = {
   defaultProfile: "Default",
@@ -19,10 +20,10 @@ function json(body: unknown): Response {
 
 function makeClient(results: unknown[][]) {
   const authFetch = vi.fn(async () =>
-    json({ token: "eyJhbGciOiJIUzI1NiJ9.eyJhIjoxfQ.sig-aaaaaaaaaaaa" }),
+    json({ token: FAKE_JWT_A }),
   );
   const auth = new NightscoutAuth(
-    { baseUrl: "https://ns.example.example", token: "guillaume-1a2b3c4d5e6f7890" },
+    { baseUrl: "https://ns.example.example", token: FAKE_TOKEN },
     { fetch: authFetch as unknown as typeof globalThis.fetch },
   );
   const readFetch = vi.fn(async () => json({ status: 200, result: results.shift() ?? [] }));

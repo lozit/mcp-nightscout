@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConfigError, configFromEnv } from "./config.js";
 import { _resetSecrets, scrubString } from "./security/secrets.js";
+import { FAKE_TOKEN, FAKE_HASHED_SECRET } from "./testing/fixtures.js";
 
 afterEach(() => _resetSecrets());
 
-const TOKEN = "claudereads-1a2b3c4d5e6f7890";
+const TOKEN = FAKE_TOKEN;
 const ok = { NIGHTSCOUT_URL: "https://ns.example.example", NIGHTSCOUT_TOKEN: TOKEN };
 
 describe("boot gate", () => {
@@ -27,7 +28,7 @@ describe("boot gate", () => {
   });
 
   it("refuses a hashed API_SECRET passed as the token", () => {
-    const sha1 = "a".repeat(40);
+    const sha1 = FAKE_HASHED_SECRET;
     expect(() =>
       configFromEnv({ env: { ...ok, NIGHTSCOUT_TOKEN: sha1 }, readToken: () => null }),
     ).toThrow(/write access/);

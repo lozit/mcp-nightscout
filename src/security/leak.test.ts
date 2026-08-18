@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { configFromEnv } from "../config.js";
 import { logger } from "./logger.js";
+import { FAKE_TOKEN } from "../testing/fixtures.js";
 
 /**
  * The acceptance test for constraint #3, stated as behaviour rather than as unit
@@ -11,7 +12,7 @@ import { logger } from "./logger.js";
  */
 describe("no token reaches stderr from a real rendered stack", () => {
   it("scrubs a 27-character token a pattern-only redactor would miss", () => {
-    const TOKEN = "guillaume-1a2b3c4d5e6f7890";
+    const TOKEN = FAKE_TOKEN;
     expect(TOKEN.length).toBeLessThan(32);
     expect(/\b[A-Za-z0-9+/_-]{32,}={0,2}\b/.test(TOKEN)).toBe(false);
 
@@ -43,7 +44,9 @@ describe("no token reaches stderr from a real rendered stack", () => {
     expect(output).not.toBe("");
     expect(output).toContain("[REDACTED]");
     expect(output).not.toContain(TOKEN);
-    expect(output).not.toContain("1a2b3c4d5e6f7890"); // not even the hex half
+    // La moitié hexadécimale du token utilisé, pas une constante figée : une
+    // assertion qui porte sur une chaîne absente du test passe toujours.
+    expect(output).not.toContain(FAKE_TOKEN.split("-")[1]!);
     expect(output).toContain("upstream call failed"); // the diagnostic survives
   });
 });

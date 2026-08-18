@@ -3,13 +3,14 @@ import { NightscoutAuth } from "./auth.js";
 import { MAX_LIMIT, NightscoutClient } from "./client.js";
 import { UpstreamContractError, UpstreamError } from "./errors.js";
 import { _resetSecrets } from "../security/secrets.js";
+import { FAKE_TOKEN, FAKE_JWT_A, FAKE_JWT_B } from "../testing/fixtures.js";
 
 afterEach(() => _resetSecrets());
 
 const BASE = "https://ns.example.example";
-const TOKEN = "guillaume-1a2b3c4d5e6f7890";
-const JWT_A = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhIn0.signature-aaaaaaaaaaaa";
-const JWT_B = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJiIn0.signature-bbbbbbbbbbbb";
+const TOKEN = FAKE_TOKEN;
+const JWT_A = FAKE_JWT_A;
+const JWT_B = FAKE_JWT_B;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
