@@ -12,6 +12,79 @@ Include the minimal code snippet / command when it is the fix.
 
 ---
 
+## Ne jamais faire passer un secret par une ligne de commande — fournir le trousseau d'abord
+
+**Why**: le 2026-08-18, le token `readable` de l'instance a été exposé en clair dans un transcript
+de conversation et dans l'historique du shell, parce que la commande de test proposée était de la
+forme `export NIGHTSCOUT_TOKEN="<token>" && npm run smoke`. Le token a dû être révoqué et recréé.
+
+La cause n'est pas l'inattention de celui qui a collé la commande : c'est que **le chemin le plus
+simple pour fournir le token était le chemin qui l'expose**. `src/credentials.ts` savait déjà lire
+le trousseau, mais rien ne permettait d'y *écrire* — donc la variable d'environnement était la
+seule option praticable. Un contrôle qui existe mais qu'aucun outil ne rend accessible ne protège
+personne.
+
+Une ligne de commande fuit sur trois canaux à la fois : l'historique du shell, la table des
+processus (`ps` la montre aux autres utilisateurs de la machine), et tout copier-coller.
+
+**When to apply**: avant de demander à quiconque — humain ou agent — de fournir un secret pour
+tester. La question à se poser n'est pas « est-ce que je fais attention ? » mais « quel est le
+chemin le plus court, et est-ce qu'il expose le secret ? ». Si oui, construire le chemin sûr
+*avant* de demander. Ici : `npm run login` (saisie masquée, écriture trousseau), et le serveur
+démarre ensuite sans aucune variable d'environnement portant le secret.
+
+**Corollaire pour les harnais de test** : `NIGHTSCOUT_URL` peut rester en variable
+d'environnement — ce n'est pas un secret. Seul le token doit passer par le trousseau.
+
+## A greedy redaction pattern destroys the diagnostic and gets switched off
+
+**Why**: the last-resort "long opaque blob" pattern was copied with `/` inside its character
+class (`[A-Za-z0-9+/_-]{32,}`). Run against a real rendered stack, it turned
+`…/api/v2/authorization/request/<token>` into `…example.[REDACTED]/[REDACTED]` and every stack
+file path into `file:///[REDACTED].mjs` — because `example/tok-1a2b…` reads as one 34-character
+run. The secret was gone, and so was every clue about where the failure happened. A redactor that
+eats the diagnostic is one the next person disables while debugging, and then it protects nothing.
+
+Caught by producing a **behaviour diff** — running a real throw through the real logger and
+reading stderr — not by the unit tests, which all passed both before and after.
+
+**When to apply**: any regex whose job is to match "something secret-looking". Exclude path
+separators (`/`, `+`) from the class, and require the run to contain **both a digit and a letter**
+so hyphenated paths don't match on length alone. Then re-run the behaviour diff and read the
+output — assert on what survives, not only on what disappears.
+
+## Pattern-only secret redaction is not enough — register the literal value at startup
+
+**Why**: the house redactor (`mcp-standardnotes/src/security/redact.ts`) scrubs by pattern only —
+`/\b[A-Za-z0-9+/_-]{32,}={0,2}\b/g`, i.e. anything token-shaped and **at least 32 characters**.
+That is correct for Standard Notes, whose session tokens are long base64. It is **wrong here, and
+measurably so**: the Nightscout readable token on this instance is **27 characters**, probed
+2026-08-18. The regex never fires on it. A redactor copied from the house reference would pass its
+own tests, look right in review, and write the token to disk verbatim the first time an upstream
+call threw.
+
+This is exactly what constraint #3 means by "**two-level**": by *value* (the literal secret and its
+URL-encoded forms, registered at startup) **and** by *pattern*. The pattern half alone is a
+coverage illusion.
+
+**When to apply**: when implementing the logger, and any time a secret-scrubbing implementation is
+adopted from elsewhere. Ask what length and alphabet its pattern assumes, then measure the actual
+secret. Also register the **JWT** at each exchange, not just at boot — it rotates, so a
+boot-time-only registration goes stale (ADR 0002).
+
+**Corollary — keep the key-name half.** `SENSITIVE_KEY_RE` in the same file already covers `jwt`
+and `authorization`, which is precisely what the v3 auth flow introduces. Take that part as-is.
+
+## Never write to stdout in a stdio MCP server
+
+**Why**: stdout **is** the JSON-RPC channel. A single `console.log` — including one left in by a
+dependency — corrupts the protocol stream, and the symptom is an unintelligible MCP client error
+rather than anything pointing at logging. Both house MCP servers write logs to `process.stderr`
+for this reason; neither says why, so it reads as style rather than as a hard constraint.
+
+**When to apply**: every log statement, every debug print, every temporary trace. If a diagnostic
+must be seen, it goes to stderr. Consider it worth a lint rule banning `console.log` in `src/`.
+
 ## Fresh analysis means fresh: don't mine the other projects unasked
 
 **Why**: this project exists because an evaluated third-party server was audited and rejected.

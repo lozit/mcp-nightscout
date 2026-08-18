@@ -20,10 +20,11 @@ rather than by patch.
 - **Scope**: stand up a Nightscout instance and start it collecting.
 - **Exit criteria**: an instance exists, is reachable over `https://`, and has a *readable*-role
   token issued.
-- **Why it is first, and urgent**: nothing is testable against real payloads without it, and
+- **Why it was first, and urgent**: nothing was testable against real payloads without it, and
   Nightscout **does not backfill** — it only holds history from its own install date, so every
-  day of delay is a day of history permanently lost.
-- **Status**: Upcoming — **current blocker**.
+  day of delay was a day of history permanently lost.
+- **Status**: **Shipped** (2026-08-18) — `<instance>`, version 15.0.7, `apiEnabled`,
+  anonymous reads refused, a `readable` token issued.
 
 ### Milestone 1 — Decide v1 vs v3
 
@@ -33,16 +34,20 @@ rather than by patch.
   `/api/v2/authorization/request/{token}`) removes them at the source rather than scrubbing after
   the fact.
 - **Exit criteria**: an ADR recording the choice and the evidence behind it.
-- **Status**: Upcoming — blocked on Milestone 0.
+- **Status**: **Shipped** (2026-08-18) — **v3**, with the probe table as evidence.
+  [ADR 0002](decisions/0002-nightscout-api-v3.md).
 
 ### Milestone 2 — Safe skeleton
 
 - **Goal**: make the security-critical parts exist *before* the features that need them.
 - **Scope**: project scaffold with pinned deps and a committed lockfile · boot gate (https-only,
-  reject admin secret) · two-level log scrubbing · sanitized exceptions · id validation.
+  reject admin secret) · **v3 token→JWT exchange with in-memory caching and re-exchange on 401** ·
+  two-level log scrubbing · sanitized exceptions · id validation.
 - **Exit criteria**: a real upstream failure is triggered and the token appears nowhere — not in
-  the message, not in the rendered traceback, not on disk.
-- **Status**: Upcoming.
+  the message, not in the rendered traceback, not on disk. The JWT is never persisted.
+- **Status**: **Shipped** (2026-08-18) — 52 tests. Le token ne fuit ni dans un message, ni
+  dans une trace rendue, ni sur disque : démontré par diff de comportement, pas seulement par
+  couverture unitaire.
 
 ### Milestone 3 — First read tool end-to-end
 
@@ -51,7 +56,10 @@ rather than by patch.
   neutralization applied on the way out.
 - **Exit criteria**: it returns correct data from the real instance, hostile text in `notes`
   comes back neutralized, and the volume cap holds regardless of what the model asks for.
-- **Status**: Upcoming.
+- **Status**: **Shipped** (2026-08-18) — `nightscout_recent_glucose` lit l'instance réelle,
+  valeurs comparées à la main aux rapports Nightscout. Plafond de volume en place dans le client.
+  Réserve assumée : la neutralisation est éprouvée sur `device`, pas sur `notes`, tant que
+  `treatments` reste vide.
 
 ### Milestone 4 — The tool surface
 

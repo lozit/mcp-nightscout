@@ -52,9 +52,10 @@ audit notes, lives in [ADR 0001](decisions/0001-language-and-stack.md):
 
 **Stack**: TypeScript on the official MCP SDK, on the Node runtime the MCP host spawns.
 
-**Hard blocker**: no Nightscout instance exists yet. Nothing is testable against real payloads
-until one does — and Nightscout does not backfill, so each day without one is a day of history
-permanently lost.
+**Instance**: live since 2026-08-18 (version 15.0.7), reached over **API v3** with a `readable`
+token exchanged for a short-lived JWT — the token never enters a data-fetch URL
+([ADR 0002](decisions/0002-nightscout-api-v3.md)). This removes the project's founding blocker;
+history now accumulates from that date, and no earlier (Nightscout does not backfill).
 
 **Disclosure constraint**: the audit that produced the constraints above documents findings in
 third-party code that have **not been disclosed to their author**. The notes stay in the
@@ -78,6 +79,10 @@ references, and never name a third-party repository as vulnerable.
 - **Being a Nightscout replacement.** This is a client.
 
 ## V1 acceptance criteria
+
+> **État au 2026-08-18** — 1 ✅ · 2 ✅ · 3 ✅ (unitaire ; aucun outil ne prend encore d'identifiant)
+> · 4 ⚠️ partiel (éprouvé sur `device`, `notes` inaccessible) · 5 ⛔ ouvert (les agrégats n'existent
+> pas ; la fidélité de la lecture sous-jacente est acquise) · 6 ✅ · 7 ✅ · 8 ✅
 
 1. The server refuses to start on a non-`https://` URL, and on an admin-secret credential.
 2. A real upstream HTTP failure is triggered and the token appears **nowhere** — not in the

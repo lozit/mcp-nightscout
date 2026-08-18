@@ -38,13 +38,26 @@ An MCP server giving Claude read-only access to a Nightscout instance: glucose r
 
 > **Critical test**: a new dev (or Claude) should be able to run the project and its tests **first try** using the commands below. If that's not the case, fill this section before anything else.
 
-**Pre-code — nothing to run yet.** Fill this in the same change that lands the first `package.json`; do not let it drift.
+- Install deps: `npm ci` (or `npm install` on a fresh clone)
+- Test: `npm test` (vitest, single run) · `npm run test:watch`
+- Typecheck: `npm run typecheck`
+- Build: `npm run build` (tsc → `dist/`)
+- Lint: not wired yet — `npm run typecheck` is the only static gate today.
 
-- Install deps: `<to fill>`
-- Run dev: `<to fill>` (stdio server — expect to drive it via an MCP host or a stdio harness, not a browser)
-- Test: `<to fill>`
-- Lint: `<to fill>`
-- Build: `<to fill>`
+**Runtime deps are pinned to exact versions** (constraint #1), and `package-lock.json` is
+committed. Three of them, per ADR 0001: `@modelcontextprotocol/sdk`, `@napi-rs/keyring`, `zod`.
+
+- Run: `npm start` (après `npm run build`) — requiert `NIGHTSCOUT_URL` (https) et un token
+  (trousseau, ou `NIGHTSCOUT_TOKEN` pour un coup unique).
+
+Le serveur est **stdio** : il se pilote depuis un hôte MCP ou un harnais stdio, jamais un
+navigateur. Un `tools/list` se vérifie en écrivant du JSON-RPC sur son stdin.
+
+<important if="adding any logging or debug output">
+**stdout is the MCP JSON-RPC channel.** All logging goes to stderr via `src/security/logger.ts`,
+which scrubs at render time. Never `console.log` in `src/` — it corrupts the protocol stream and
+the symptom points nowhere near logging (`docs/LEARNINGS.md`).
+</important>
 
 ## Key files and folders
 

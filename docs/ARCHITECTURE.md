@@ -5,9 +5,9 @@
 
 For the **why** behind choices → see `docs/decisions/`.
 
-> **Status: intended, not built.** Nothing below exists in code yet. This file records the
-> shape the seven constraints in [ADR 0001](decisions/0001-language-and-stack.md) imply, so the
-> first commits have a target. Rewrite it to describe reality as soon as reality exists.
+> **Status: partly built.** Components marked ✅ exist and are under test. The tool layer,
+> the sanitizer and the aggregator do not exist yet — `src/index.ts` has not been written, so
+> there is no runnable server. Update each marker in the change that lands the component.
 
 ## Overview
 
@@ -22,8 +22,11 @@ MCP host  ──stdio──▶  mcp-nightscout  ──HTTPS──▶  Nightscout
 
 Data crosses two trust boundaries, in opposite directions, and each has a mandatory gate:
 
-- **Outbound (us → Nightscout)**: carries the token. Gate = *nothing containing the token may
-  ever be rendered into a log, an error, or a tool result.*
+- **Outbound (us → Nightscout)**: carries the credential. Under v3 the token is exchanged once
+  for a JWT and every read is `Authorization: Bearer` **in-header**, so the credential is not in
+  the URL to begin with ([ADR 0002](decisions/0002-nightscout-api-v3.md)). Gate = *nothing
+  containing the token or the JWT may ever be rendered into a log, an error, or a tool result* —
+  now defence-in-depth rather than the primary control.
 - **Inbound (Nightscout → model)**: carries text written by third parties. Gate = *no free-text
   field reaches the model without neutralization.*
 
@@ -50,11 +53,32 @@ by *value* and by *pattern* (`token=`, `Bearer`, `api-secret:`). Applied both at
 **and at format time** — a filter never sees a traceback, which is only rendered during
 formatting. This must exist before the first component that can throw.
 
-### Nightscout client
+### Auth / JWT — `src/upstream/auth.ts` ✅
 
-Async HTTPS client. Catches upstream errors and re-throws carrying **the path only**, dropping
-the cause, because the underlying error object embeds the full URL — query string and token
-included. Validates every identifier it interpolates into a path (`^[0-9a-fA-F]{24}$`).
+Exchanges the `readable` token for a short-lived JWT via `/api/v2/authorization/request/{token}`,
+once, and caches it **in memory only** — the token lives in the keychain, the JWT is never
+persisted. Detects expiry as a `401` on a previously-working read and re-exchanges. This is state
+the v1 path would not have had; it is the cost of getting the token out of the URL (ADR 0002).
+
+Two details that are not obvious from the description:
+
+- **The exchange is the one request carrying the token in its path**, so the path exposed in its
+  errors is masked (`/api/v2/authorization/request/<token>`) *in addition to* being scrubbed.
+  Not putting the secret there beats cleaning it afterwards.
+- **A single in-flight exchange is shared.** Without it, a burst of concurrent reads all taking a
+  401 triggers N exchanges: upstream sees a stampede, and the N-1 surplus JWTs get registered for
+  scrubbing without ever being used.
+
+### Nightscout client — `src/upstream/client.ts` ✅
+
+Async HTTPS client against **v3** shapes (envelope and paging differ from v1). Sends
+`Authorization: Bearer <jwt>`. Catches upstream errors and re-throws carrying **the path only**,
+dropping the cause — an error object can still embed a URL, and the exchange call is the one
+request that does carry the token. Validates every identifier it interpolates into a path.
+
+> **Open**: the validation shape. `^[0-9a-fA-F]{24}$` is the v1 Mongo ObjectId; v3 addresses
+> documents by an `identifier` field whose guaranteed form is unprobed. Settle it before writing
+> the guard — and if a real call fails against it, probe rather than relax it.
 
 ### Tool layer
 
@@ -89,10 +113,12 @@ reduction, not intelligence: the model must never do arithmetic over thousands o
 
 ## Points of attention
 
-- **No instance to test against yet** — the whole design is unvalidated against real payloads.
-- **API v1 vs v3 undecided** — v1's `?token=` query string is the root cause of the
-  token-in-URL and token-in-exception problems; v3 would remove them at the source. Blocked on
-  having an instance. Record the outcome as an ADR.
+- **The instance is live and the API version is settled (v3)** — but only `status` and a
+  one-row `entries` read have actually been exercised. Every payload shape below that is still
+  unvalidated.
+- **JWT lifetime is unmeasured** — the re-exchange path (401 on a previously-working read) is
+  the least-tested branch by nature, and the one that fails at 3am. Give it a deliberate test.
+- **Identifier validation shape is unresolved under v3** — see the client component above.
 - **The sanitizer has no settled strategy yet** (delimit / truncate / strip). Likely its own ADR.
 - **Correct-looking aggregates are the quiet risk** — they must be checked by hand against
   Nightscout's reports, not merely reviewed.

@@ -5,100 +5,157 @@
 
 For the **why** behind choices → see `docs/decisions/`.
 
-> **Status: unverified.** This server owns **no database and no schema of its own** — it stores
-> nothing. What follows describes the *upstream* Nightscout collections it reads. It is written
-> from documentation and from reading other clients, **not** from probing a live instance: no
-> instance exists yet. Treat every field as provisional until confirmed against real payloads,
-> and correct this file in the same change that confirms them.
+> **Status: probed against the live instance on 2026-08-18** (version 15.0.7, **API v3**,
+> [ADR 0002](decisions/0002-nightscout-api-v3.md)). This server owns **no database and no schema
+> of its own** — it stores nothing. What follows describes the *upstream* collections it reads.
 >
-> The API version is also undecided (v1 vs v3) — see `PLAN.md`. Field names and shapes differ
-> between them.
+> `entries` and `profile` are recorded from **real payload shapes**. `treatments` and
+> `devicestatus` were **empty at probe time** and are therefore **not characterized** — see the
+> warning on each. Nothing below is inferred from v1 documentation without being labelled as such.
+>
+> Probe method: field names and types only, values never retrieved. Re-run it and rewrite this
+> file in the same change whenever the shapes move.
 
-## Overview
+## Response envelope (v3)
 
-Nightscout stores its data in MongoDB collections, exposed over a REST API. The ones relevant
-here:
+Every v3 read returns the same two-key envelope:
+
+```jsonc
+{ "status": 200, "result": [ /* documents */ ] }
+```
+
+- No `paging` object. Paging is driven by **request parameters** (`limit`, `skip`), not by
+  envelope metadata — so the client must track its own position.
+- `fields=_all` is required to get the full document; without it v3 returns a reduced field set.
+  Every probe above used it, so the tables below are the *full* shapes.
+
+## Identifiers — constraint #4, settled
+
+**v3 addresses documents by `identifier`. There is no `_id` in a v3 response** (`_id` probed as
+absent on every collection).
+
+On this instance `identifier` is a **24-character hex Mongo ObjectId** — measured, on both
+`entries` and `profile`:
 
 ```
-entries       — CGM readings (the bulk of the volume)
-treatments    — insulin, carbs, notes, and other logged events
-profile       — basal / ISF / ICR / DIA settings
-devicestatus  — pump and loop reporting
+id_class: { "identifier": "24-hex-objectid", "_id": "absent-or-null" }
 ```
 
-Only `entries` and `treatments` are needed for V1's aggregates. `profile` matters mostly because
-it is the **thing the threat model protects** — it is read-relevant for context (units, targets)
-and must never be written.
+**So constraint #4's `^[0-9a-fA-F]{24}$` is the correct shape — but for the right reason, not the
+one originally written.** It is correct because these documents originate from an ObjectId-issuing
+path, not because v3 guarantees the format. v3 permits other identifier forms for documents
+created through the v3 API, so a future uploader could introduce UUID-shaped identifiers on this
+same instance.
 
-## The field that drives the design
-
-| Field | Where | Why it matters |
-|---|---|---|
-| `notes` | `treatments` | **Free text, third-party-writable.** Any uploader or integration with write access to the instance can put arbitrary content there, and it reaches the model verbatim unless neutralized. This is the prompt-injection vector, and it is a *data-model* fact before it is a security control. See `docs/SECURITY.md`. |
-
-Treat any other free-text or third-party-populated field the same way as it is discovered
-(`eventType` variants, device strings, `reason`, custom uploader fields). The rule is about
-provenance, not about the specific field name.
+**Rule**: validate with `^[0-9a-fA-F]{24}$`. If a real, legitimate read ever fails that check,
+**re-probe and widen the pattern deliberately** — do not relax the guard to make a call succeed.
+The guard exists because HTTP clients normalize `..` per RFC 3986, which turns an unvalidated
+identifier into an arbitrary path (`docs/LEARNINGS.md`).
 
 ## Entities
 
-### `entries` — CGM readings
+### `entries` — CGM readings ✅ probed
 
 | Field | Type | Notes |
 |---|---|---|
-| `_id` | Mongo ObjectId | Validate as `^[0-9a-fA-F]{24}$` before interpolating into any path |
-| `date` | epoch ms | Primary time key |
-| `dateString` | ISO 8601 | Redundant with `date`; confirm which is authoritative |
-| `sgv` | int | Sensor glucose value, **mg/dL** — see the units warning below |
-| `direction` | string | Trend arrow (`Flat`, `FortyFiveUp`, …) |
-| `type` | string | `sgv`, `mbg`, `cal` — filter deliberately; not every entry is a CGM reading |
-| `device` | string | Third-party-populated |
+| `identifier` | string | 24-hex ObjectId. Validate before interpolating into any path. |
+| `date` | number | **The time key** — epoch milliseconds. |
+| `dateString` | string | ISO 8601, redundant with `date`. Prefer `date`; it needs no parsing. |
+| `sysTime` | string | Server-side timestamp, ISO 8601. |
+| `utcOffset` | number | Minutes. Needed to render a local-time-of-day view (AGP-style binning). |
+| `sgv` | number | Sensor glucose value. **Units are not carried on the reading** — see below. |
+| `type` | string | `sgv`, `mbg`, `cal`… **Filter deliberately: not every entry is a CGM reading**, and averaging across types silently corrupts every aggregate. |
+| `device` | string | Third-party-populated. Treat as untrusted text. |
+| `srvCreated` | number | Server insert time, epoch ms. |
+| `srvModified` | number | Server modify time, epoch ms. Useful as an incremental-sync cursor. |
 
-### `treatments` — logged events
+### `profile` — therapy settings ✅ probed
+
+**Read-only, always.** These are the parameters a closed-loop system uses to compute doses;
+writing them is the exact harm this project exists to avoid.
 
 | Field | Type | Notes |
 |---|---|---|
-| `_id` | Mongo ObjectId | Validate before use |
-| `created_at` | ISO 8601 | Time key — **note it differs from `entries.date`** in both name and format |
-| `eventType` | string | `Meal Bolus`, `Correction Bolus`, `Temp Basal`, … — open vocabulary in practice |
-| `insulin` | float | Units |
-| `carbs` | float | Grams |
-| `notes` | **free text** | **Neutralize before it reaches the model** |
-| `enteredBy` | string | Third-party-populated |
+| `identifier` | string | 24-hex ObjectId |
+| `defaultProfile` | string | Names which key of `store` is active |
+| `store` | object | Map of **profile name → settings**. One entry on this instance. Profile names are user-chosen labels — treat them as untrusted text, and avoid echoing them where not needed. |
+| `units` | string | **Top-level** units |
+| `startDate` | string | ISO 8601 |
+| `created_at` | string | ISO 8601 — note `profile` uses `created_at`, `entries` uses `date`. The time key is **not** uniform across collections. |
+| `mills` | number | Epoch ms, mirrors `startDate` |
+| `srvCreated` / `srvModified` | number | Epoch ms |
 
-### `profile` — therapy settings
+Each `store[<name>]` entry:
 
-Holds `basal`, `sens` (ISF), `carbratio` (ICR), `dia`, target ranges and `units`. **Read-only,
-always.** These are the parameters a closed-loop system uses to compute doses; writing them is
-the exact harm this project is built to avoid.
+| Field | Type | Notes |
+|---|---|---|
+| `units` | string | **Also present here** — see the units warning below |
+| `dia` | number | Duration of insulin action, hours |
+| `carbs_hr` | number | Carb absorption rate |
+| `delay` | number | |
+| `timezone` | string | IANA zone — the authority for local-time binning, over `utcOffset` guesses |
+| `basal` | array of `{time: string, value: number, timeAsSeconds: number}` | Time-segmented |
+| `sens` | array of same | ISF, time-segmented |
+| `carbratio` | array of same | ICR, time-segmented |
+| `target_low` | array of same | **TIR's lower bound lives here** |
+| `target_high` | array of same | **TIR's upper bound lives here** |
 
-Its `units` field is what tells you how to interpret everything else.
+> All five therapy arrays are **time-segmented**, not scalar. A "the ISF is 45" answer is wrong
+> by construction: it is 45 *during some segments*. Any tool reporting them must carry the
+> segmentation or say explicitly which segment it read.
 
-### `devicestatus` — pump / loop reporting
+### `treatments` — logged events ⚠️ NOT probed
 
-Not needed for V1. Listed so its absence is a decision rather than an oversight.
+**The collection was empty at probe time** (`result: []`), so its shape is **unknown on this
+instance** and is deliberately not tabulated here. The instance was installed the same day and
+nothing has logged a treatment yet.
 
-## Units — the correctness trap
+What is known without probing, and why it matters:
 
-Nightscout stores glucose in **mg/dL** internally and converts to mmol/L for display, per the
-profile's `units`. An aggregate computed on stored values and presented without that conversion
-is off by a factor of ~18 and will still look like a plausible number. TIR thresholds have the
-same problem: 70–180 mg/dL is 3.9–10.0 mmol/L.
+- This collection carries the **`notes` free-text field**, which is the project's
+  prompt-injection vector (`docs/SECURITY.md`). It is written by any uploader or integration with
+  write access, and reaches the model verbatim unless neutralized.
+- **Consequence**: the neutralization strategy cannot be designed against real data yet, and the
+  aggregates that need insulin/carb events (anything beyond pure CGM statistics) cannot be built
+  or verified.
 
-Read `units` from the profile; never assume. This is the most likely source of a silently wrong
-aggregate — see the acceptance criterion requiring hand-verification against Nightscout's own
-reports (`docs/VISION.md`).
+**Do not write client code or a `notes` sanitizer against assumed field names.** Re-probe once
+the collection has data, then fill this section and remove this warning in the same change.
+
+### `devicestatus` — pump / loop reporting ⚠️ NOT probed
+
+Also empty at probe time. Not needed for V1, so its absence is a deferral rather than a blocker —
+recorded so it is a decision and not an oversight.
+
+## Units — the correctness trap, now with a concrete ambiguity
+
+`sgv` carries **no unit of its own**. The unit comes from the profile — and the probe found
+`units` in **two places**: at the profile top level, and inside each `store[<name>]` entry.
+
+**Which one is authoritative is unresolved.** They agree on this instance (single profile), so a
+naive implementation reading either will look correct and will diverge the first time a second
+profile exists with different units.
+
+Until it is settled: read `units` from the **active** store entry (`store[defaultProfile].units`),
+and **fail loudly** if it disagrees with the top-level value rather than silently preferring one.
+
+The stakes: Nightscout stores glucose in **mg/dL** and displays mmol/L per this setting. The
+factor is ~18 (`mg/dL ÷ 18.018 = mmol/L`). TIR bounds move with it too — 70–180 mg/dL is
+3.9–10.0 mmol/L. An aggregate computed on the wrong assumption is off by 18× and still looks like
+a plausible number. This is the most likely source of a silently wrong result in the whole
+project, which is why `docs/VISION.md` requires hand-verification against Nightscout's own reports.
 
 ## Access rules
 
-None to enforce: the server is read-only against a single instance owned by the single user.
-The only access decision happens at boot (credential kind and URL scheme), not per row.
+None to enforce: read-only, single instance, single user. The only access decision happens at
+boot (credential kind and URL scheme), not per document.
 
-## Indexes and performance
+## Volume and paging
 
-Not ours — the upstream instance owns its indexes. What *is* ours: **volume control**. `entries`
-is by far the largest collection (a CGM writes ~288 readings/day, so a year is ~100k rows). Every
-query caps `count` server-side and bounds its date range, regardless of what the model requests.
+`entries` is by far the largest collection — a CGM writes ~288 readings/day, so a year is ~100k
+documents. The envelope offers no paging metadata, so the client caps `limit` server-side and
+bounds date ranges itself, regardless of what the model requests (constraint #5). `srvModified` is
+the natural incremental cursor if sync is ever needed.
 
 ## Migrations
 

@@ -34,13 +34,23 @@ third-party repository as vulnerable. `0001` is the model to follow.
 |---|---|---|---|
 | 0000 | Template | — | — |
 | [0001](0001-language-and-stack.md) | Language and stack: TypeScript on the official MCP SDK | Accepted | 2026-08-18 |
+| [0002](0002-nightscout-api-v3.md) | Talk to Nightscout over API v3 | Accepted | 2026-08-18 |
+| [0003](0003-dependency-majors.md) | Dependency majors: TypeScript 7, zod 4, @types/node 26 | Accepted | 2026-08-18 |
 
 ## Decisions closed by 0001 — reopening requires a new ADR
 
 - **stdio, local only** — no HTTP transport, no listening port.
 - **Read-only** — this server never writes to a Nightscout instance.
 
+## Settled by 0002
+
+- **API version: v3**, authenticated by the token→JWT exchange. Decided against the live instance,
+  with probe results recorded in the ADR.
+
 ## Known open questions awaiting an ADR
 
-- **Nightscout API v1 vs v3** — blocked on having a live instance to probe (`PLAN.md`).
 - **Free-text neutralization strategy** for `notes` — delimit, truncate, or strip (`docs/SECURITY.md`).
+- **Identifier validation under v3** — constraint #4 is written for a Mongo ObjectId
+  (`^[0-9a-fA-F]{24}$`), which is a v1 shape. v3 addresses documents by an `identifier` field whose
+  guaranteed form has not been probed. Settle it against the instance before the client validates
+  anything; do not relax the guard to make a call succeed.

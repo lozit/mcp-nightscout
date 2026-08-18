@@ -65,6 +65,13 @@ gate: right kind of credential, right URL scheme, or the process does not start.
   HTTP error from writing the token to disk.
 - **Exceptions are sanitized**: catch upstream errors, re-throw with the **path only**, and drop
   the cause — the original error object embeds the full URL, query string included.
+- **Measured 2026-08-18**: the readable token is **27 characters**, the exchanged JWT **187**. A
+  length-thresholded pattern (the common `{32,}` form used by the house redactor in
+  `mcp-standardnotes`) **does not match the token** — which is the concrete reason the *by value*
+  half of the rule above is mandatory and not belt-and-braces. The JWT must be re-registered on
+  every exchange, since it rotates. See `docs/LEARNINGS.md`.
+- **stdout is the MCP protocol channel** — all logging goes to `stderr`. A stray `console.log`
+  corrupts the JSON-RPC stream.
 - `.env` is gitignored. `intakes/` is gitignored (see below).
 
 ## Attack surface and controls
@@ -86,6 +93,23 @@ findings have not been disclosed to their author.** Consequently:
 - Tracked documents state the findings as **abstract rules** with `§` references into the private
   notes, and **never name a third-party repository as vulnerable**.
 - Revisit this if and when disclosure happens; until then the discipline holds.
+
+## Incidents survenus
+
+### 2026-08-18 — token exposé dans un transcript
+
+Le token `readable` a été fourni en clair sur une ligne de commande lors du premier test contre
+l'instance, ce qui l'a inscrit dans un transcript de conversation et dans l'historique du shell.
+
+- **Impact** : lecture seule des données de l'instance par quiconque disposait du transcript.
+  Aucune capacité d'écriture — le sujet était bien `readable`, ce qui est précisément la raison
+  pour laquelle la décision « lecture seule » (ADR 0001) porte ses fruits ici.
+- **Traitement** : révocation du sujet dans Admin Tools et recréation d'un nouveau token.
+- **Voie d'évasion** : la variable d'environnement était le seul moyen praticable de fournir le
+  token — `src/credentials.ts` savait lire le trousseau mais rien ne savait y écrire.
+- **Contrôle ajouté** : `mcp-nightscout-login` (`npm run login`), saisie masquée, écriture
+  directe dans le trousseau. Le serveur démarre ensuite sans `NIGHTSCOUT_TOKEN`.
+  Voir `docs/LEARNINGS.md`.
 
 ## Incident procedure
 
