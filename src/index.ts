@@ -8,6 +8,7 @@ import { logger } from "./security/logger.js";
 import { NightscoutAuth } from "./upstream/auth.js";
 import { NightscoutClient } from "./upstream/client.js";
 import { DEFAULT_HOURS, MAX_HOURS, recentGlucose } from "./tools/entries.js";
+import { DEFAULT_DAYS, MAX_DAYS, glucoseSummary } from "./tools/summary.js";
 
 /**
  * Point d'entrée du serveur MCP.
@@ -53,6 +54,45 @@ async function main(): Promise<void> {
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       };
+    },
+  );
+
+  server.registerTool(
+    "nightscout_glucose_summary",
+    {
+      title: "Glucose summary (mean, TIR, CV, GMI)",
+      description:
+        "Deterministic server-side summary over a long window: mean, standard deviation, " +
+        "coefficient of variation, GMI, and the consensus time-in-range bands. Read-only. " +
+        `Window in days (1-${MAX_DAYS}, default ${DEFAULT_DAYS}), or a single calendar day. ` +
+        "Thresholds are the fixed international consensus values, NOT the profile's personal " +
+        "targets, so the figures stay comparable. Always read `coverage`, `window` and " +
+        "`caveats` before quoting a number: band percentages are shares of readings, not " +
+        "time-weighted, and a sliding window does not line up with a Nightscout report.",
+      inputSchema: {
+        days: z
+          .number()
+          .int()
+          .min(1)
+          .max(MAX_DAYS)
+          .optional()
+          .describe(
+            `Sliding window in days (1-${MAX_DAYS}, default ${DEFAULT_DAYS}). Ignored if \`date\` is set.`,
+          ),
+        date: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional()
+          .describe(
+            "Single calendar day, YYYY-MM-DD, framed midnight-to-midnight in the profile's " +
+              "time zone. Use this to compare against a Nightscout report.",
+          ),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: true },
+    },
+    async ({ days, date }) => {
+      const result = await glucoseSummary(client, { days, date });
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
     },
   );
 

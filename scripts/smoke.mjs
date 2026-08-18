@@ -8,9 +8,11 @@
  * Usage :
  *   export NIGHTSCOUT_URL="https://votre-instance"
  *   export NIGHTSCOUT_TOKEN="<token readable>"       # ou trousseau
- *   node scripts/smoke.mjs                            # sortie caviardée (défaut)
+ *   node scripts/smoke.mjs                            # relevés masqués, agrégats affichés
  *   node scripts/smoke.mjs --full                     # valeurs réelles incluses
  *   node scripts/smoke.mjs --hours 6
+ *   node scripts/smoke.mjs --date 2026-08-18       # jour calendaire, comparable
+ *                                                  # a un rapport Nightscout
  *
  * **Par défaut, aucune valeur de glycémie n'est affichée** : seulement la forme,
  * les unités, les décomptes et les avertissements. C'est suffisant pour valider la
@@ -24,6 +26,8 @@ import { createInterface } from "node:readline";
 const args = process.argv.slice(2);
 const full = args.includes("--full");
 const hours = Number(args[args.indexOf("--hours") + 1]) || 3;
+const days = Number(args[args.indexOf("--days") + 1]) || 1;
+const date = args.includes("--date") ? args[args.indexOf("--date") + 1] : undefined;
 
 if (!process.env.NIGHTSCOUT_URL) {
   console.error("NIGHTSCOUT_URL n'est pas défini.");
@@ -111,12 +115,52 @@ try {
     console.log(JSON.stringify(shape(first), null, 2));
   }
 
+  // --- Résumé agrégé -------------------------------------------------------
+  const sum = await call("tools/call", {
+    name: "nightscout_glucose_summary",
+    arguments: date ? { date } : { days },
+  });
+
+  if (sum.error || sum.result?.isError) {
+    console.log("\n=== RÉSUMÉ : ÉCHEC ===");
+    console.log(sum.result?.content?.[0]?.text ?? JSON.stringify(sum.error, null, 2));
+  } else {
+    const g = JSON.parse(sum.result.content[0].text);
+    console.log(`\n=== RÉSUMÉ AGRÉGÉ ===`);
+    console.log("fenêtre     :", g.window);
+    console.log("de / à      :", g.since, "->", g.until);
+    console.log("relevés     :", g.count, "sur ~" + g.expected, "attendus");
+    console.log("couverture  :", Math.round(g.coverage * 100) + "%",
+      g.coverage > 1.5 ? "  <-- DENSITÉ ANORMALE" : "");
+    if (g.duplicatesDropped) console.log("doublons    :", g.duplicatesDropped, "écartés");
+    if (g.medianIntervalSeconds !== undefined) {
+      console.log("intervalle  :", g.medianIntervalSeconds + "s (médian observé)");
+    }
+    // Les agrégats ne sont pas des relevés : ce sont les chiffres à comparer aux
+    // rapports Nightscout, donc ils s'affichent sans --full.
+    console.log("moyenne     :", g.mean, g.unit);
+    console.log("médiane     :", g.median, g.unit);
+    console.log("écart-type  :", g.sd, g.unit, "(échantillon, n-1)");
+    console.log("CV          :", g.cv + "%");
+    console.log("GMI         :", g.gmi + "%");
+    console.log("seuils      :", JSON.stringify(g.thresholds), g.unit);
+    console.log("bandes (% de relevés) :");
+    console.log("  très bas  :", g.bands.veryLow + "%");
+    console.log("  bas       :", g.bands.low + "%");
+    console.log("  EN CIBLE  :", g.bands.inRange + "%");
+    console.log("  haut      :", g.bands.high + "%");
+    console.log("  très haut :", g.bands.veryHigh + "%");
+    if (g.caveats?.length) {
+      console.log("réserves :");
+      for (const c of g.caveats) console.log("  -", c);
+    }
+  }
+
   if (full) {
     console.log("\n=== VALEURS RÉELLES (--full) ===");
     console.log(JSON.stringify(payload, null, 2));
   } else {
-    console.log("\n(valeurs masquées — relancez avec --full pour vérifier les chiffres");
-    console.log(" à la main contre les rapports Nightscout)");
+    console.log("\n(relevés individuels masqués — --full pour les afficher)");
   }
 } catch (err) {
   console.error("\n=== ÉCHEC ===");
