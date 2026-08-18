@@ -38,6 +38,24 @@ export function toMmol(mgdl: number): number {
   return mgdl / 18.018;
 }
 
+/**
+ * Convertit une valeur **telle que stockée** vers l'unité d'affichage.
+ *
+ * Nightscout stocke `sgv` en mg/dL, **toujours** : le champ `units` du profil est
+ * une préférence d'affichage, pas une description de ce qui est en base. Publier
+ * `sgv` brut en l'étiquetant avec l'unité du profil donne donc un chiffre faux d'un
+ * facteur ~18 sur une instance en mmol/L — et parfaitement crédible, puisque rien
+ * dans la donnée ne signale l'erreur.
+ *
+ * Tout ce qui sort d'ici vers un résultat d'outil passe par cette fonction.
+ */
+export function fromStorage(sgvMgdl: number, unit: GlucoseUnit): number {
+  if (unit === "mg/dL") return Math.round(sgvMgdl);
+  // Une décimale : la convention d'affichage en mmol/L, et assez de précision
+  // pour comparer à la main avec les rapports Nightscout.
+  return Math.round(toMmol(sgvMgdl) * 10) / 10;
+}
+
 interface ProfileDoc {
   readonly defaultProfile?: unknown;
   readonly units?: unknown;

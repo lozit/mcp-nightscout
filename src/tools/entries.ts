@@ -1,6 +1,6 @@
 import type { NightscoutClient } from "../upstream/client.js";
 import { asUntrustedField } from "../domain/freetext.js";
-import { resolveUnit, targetRange, type GlucoseUnit } from "../domain/units.js";
+import { fromStorage, resolveUnit, targetRange, type GlucoseUnit } from "../domain/units.js";
 import { UpstreamContractError } from "../upstream/errors.js";
 
 /**
@@ -76,7 +76,9 @@ export function toReadings(
 
     readings.push({
       at: new Date(e.date).toISOString(),
-      value: e.sgv,
+      // `sgv` est stocké en mg/dL quelle que soit l'unité du profil : convertir
+      // ici, sinon on étiquette une valeur mg/dL comme des mmol/L.
+      value: fromStorage(e.sgv, unit),
       unit,
       trend: typeof e.direction === "string" ? e.direction : undefined,
       device: asUntrustedField("device", e.device),

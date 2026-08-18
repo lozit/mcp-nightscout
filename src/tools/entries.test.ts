@@ -123,3 +123,51 @@ describe("recentGlucose", () => {
     expect(out.targetRange).toEqual({ low: 3.9, high: 10.0 });
   });
 });
+
+describe("conversion depuis l'unité de stockage", () => {
+  // Nightscout stocke sgv en mg/dL quoi qu'affiche le profil. Publier la valeur
+  // brute sous une étiquette mmol/L la rend fausse d'un facteur ~18, et crédible.
+  const MMOL_PROFILE = {
+    defaultProfile: "Default",
+    units: "mmol",
+    store: { Default: { units: "mmol" } },
+  };
+
+  it("convertit sgv en mmol/L quand le profil affiche en mmol", async () => {
+    const { client } = makeClient([
+      [MMOL_PROFILE],
+      [{ type: "sgv", sgv: 180, date: 1_755_000_000_000, device: "x" }],
+    ]);
+    const out = await recentGlucose(client, 3);
+    expect(out.unit).toBe("mmol/L");
+    expect(out.readings[0]?.value).toBeCloseTo(10.0, 1); // 180 mg/dL == 10.0 mmol/L
+  });
+
+  it("laisse la valeur en mg/dL quand le profil affiche en mg/dL", async () => {
+    const { client } = makeClient([
+      [PROFILE],
+      [{ type: "sgv", sgv: 180, date: 1_755_000_000_000, device: "x" }],
+    ]);
+    const out = await recentGlucose(client, 3);
+    expect(out.readings[0]?.value).toBe(180);
+  });
+
+  it("place la valeur du bon cote de la borne TIR dans les deux unites", async () => {
+    // 100 mg/dL == 5.55 mmol/L : dans la cible des deux cotes. Le test attrape
+    // une conversion oubliee, qui rendrait 100 "au-dessus de 10.0".
+    for (const [profile, expectedUnit] of [
+      [PROFILE, "mg/dL"],
+      [MMOL_PROFILE, "mmol/L"],
+    ] as const) {
+      const { client } = makeClient([
+        [profile],
+        [{ type: "sgv", sgv: 100, date: 1_755_000_000_000, device: "x" }],
+      ]);
+      const out = await recentGlucose(client, 3);
+      const v = out.readings[0]!.value;
+      expect(out.unit).toBe(expectedUnit);
+      expect(v).toBeGreaterThanOrEqual(out.targetRange.low);
+      expect(v).toBeLessThanOrEqual(out.targetRange.high);
+    }
+  });
+});
