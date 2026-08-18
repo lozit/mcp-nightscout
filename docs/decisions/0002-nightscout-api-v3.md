@@ -7,9 +7,10 @@
 ## Context
 
 ADR 0001 left the v1-vs-v3 choice open, blocked on a real instance to probe.
-The instance now exists (`<instance>`, self-reported version
-**15.0.7**, `apiEnabled: true`), so the question is decidable rather than
-theoretical.
+The instance now exists (self-reported version **15.0.7**, `apiEnabled: true`),
+so the question is decidable rather than theoretical. Son adresse ne figure pas
+ici : ce dépôt est public, et publier l'adresse d'un serveur de données de santé
+personnelles en fait une cible désignée sans rien apporter au lecteur.
 
 The audit that seeded this project traced two of its findings — the token
 logged in cleartext, and the token leaked in exception messages — to a single
