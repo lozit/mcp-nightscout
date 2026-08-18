@@ -179,3 +179,25 @@ une preuve ; un écart « faible » ne l'est pas.
 agrégats, statistiques, conversions d'unité, fenêtres temporelles. Trouver une source
 indépendante et comparer à la main avant de déclarer que ça marche. Et quand un écart subsiste,
 le chiffrer jusqu'à ce qu'il s'explique : « proche » n'est pas une conclusion.
+
+## Une fixture de test doit avoir la forme d'un secret, jamais son entropie
+
+**Why**: GitGuardian a levé huit incidents « High » sur ce dépôt, tous dans des fichiers de test.
+Aucun n'était un vrai secret. Le coût n'est pas là : c'est qu'un détecteur qui se trompe huit fois
+devient un détecteur qu'on classe sans lire, et la neuvième alerte sera la vraie. Sur ce dépôt
+précisément, un vrai token avait fui le même jour.
+
+Le bruit était auto-infligé. Mes fixtures avaient des suffixes de 16 hexadécimaux aléatoires et
+des segments base64 écrits en dur — une réalisme qui n'achète rien, puisque les tests vérifient
+une **forme** (`-[0-9a-f]{16}$`, trois segments séparés par des points), jamais une entropie.
+
+**When to apply**: à l'écriture de toute valeur factice ressemblant à un identifiant. Garder la
+forme, supprimer l'entropie : hexadécimal séquentiel (`0123456789abcdef`), motifs répétés, et
+pour un JWT, l'assembler à l'exécution depuis un objet JSON — le source ne porte alors aucune
+chaîne encodée alors que la valeur produite commence bien par `eyJ`. Centraliser dans
+`src/testing/`, exclu du build.
+
+**Piège du nettoyage lui-même** : remplacer des fixtures touche des valeurs, pas de la logique,
+donc on ne se relit pas. Une assertion `not.toContain("<ancienne constante>")` devient
+silencieusement **toujours vraie** — elle passe au vert en ne testant plus rien. Après tout
+remplacement de fixtures, vérifier par mutation qu'au moins un test sait encore devenir rouge.

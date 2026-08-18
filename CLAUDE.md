@@ -111,6 +111,13 @@ Conventional Commits: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`. 
 
 Two decisions are **closed** and need a new ADR to reopen: **stdio-only** and **read-only**.
 
+**Les valeurs de test gardent la forme, jamais l'entropie.** Une fixture doit être reconnaissable
+par le code (suffixe de 16 hexadécimaux pour un token de sujet, trois segments pour un JWT) et
+ininteressante pour un scanner de secrets : hexadécimal séquentiel, motifs répétés, JWT assemblés
+à l'exécution plutôt qu'écrits encodés. Les fixtures partagées vivent dans `src/testing/`, exclu
+du build. Une alerte de scanner sur un fichier de test n'est pas un faux positif anodin : c'est du
+bruit qui apprend à ignorer la vraie alerte suivante.
+
 ### Permissions and settings
 
 - Pre-allow safe permissions via `/permissions` (e.g., `"Bash(npm run *)"`, `"Bash(git status)"`)
