@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+.DS_Store
+
+# Audit notes on third-party code — never published (undisclosed findings)
+intakes/
