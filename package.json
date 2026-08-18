@@ -1,0 +1,49 @@
+{
+  "name": "mcp-nightscout",
+  "version": "0.0.0",
+  "description": "An MCP server giving Claude read-only access to a Nightscout instance: glucose readings, treatments, and deterministic server-side aggregates (mean, TIR, CV, GMI).",
+  "license": "MIT",
+  "author": "Guillaume Ferrari <guillaume.ferrari@protonmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lozit/mcp-nightscout.git"
+  },
+  "homepage": "https://github.com/lozit/mcp-nightscout#readme",
+  "bugs": "https://github.com/lozit/mcp-nightscout/issues",
+  "mcpName": "io.github.lozit/mcp-nightscout",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "nightscout",
+    "cgm",
+    "glucose",
+    "diabetes"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@napi-rs/keyring": "1.3.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "26.2.0",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  }
+}
