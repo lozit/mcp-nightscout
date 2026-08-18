@@ -53,6 +53,11 @@ gate: right kind of credential, right URL scheme, or the process does not start.
   `http://` would send the secret in clear.
 - The token — supplied by environment or keychain; never committed, never logged, never
   returned in a tool result or an error.
+- **The token leaves data-fetch URLs entirely under API v3** ([ADR 0002](decisions/0002-nightscout-api-v3.md)):
+  it is exchanged once for a JWT via `/api/v2/authorization/request/{token}`, and every read
+  carries `Authorization: Bearer <jwt>` in a header. The scrubbing and exception-sanitizing below
+  therefore protect against the token appearing where it should not — they are defence-in-depth,
+  not the primary control, which is that the token is not in the URL to begin with.
 - **Two-level scrubbing is mandatory**: by *value* (the literal token and its URL-encoded forms,
   registered at startup) **and** by *pattern* (`token=`, `Bearer`, `api-secret:`), applied at
   **format** time as well as filter time — a `logging.Filter`-equivalent never sees the

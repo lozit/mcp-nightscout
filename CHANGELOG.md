@@ -10,6 +10,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Project documentation structure bootstrapped with groundrules on 2026-08-18
+- ADR 0002 — talk to Nightscout over API v3, decided against the live instance (version 15.0.7): the readable token is exchanged once for a JWT and every read is Bearer-authenticated in-header, so the token leaves every data-fetch URL
 
 ### Changed
 

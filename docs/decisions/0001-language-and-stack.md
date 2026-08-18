@@ -56,6 +56,5 @@ a finding in the internal audit (§ references point into `intakes/`):
 
 - Conventions (lint, tests, CI shape) follow `mcp-standardnotes`, the house MCP
   with the most complete apparatus.
-- The v1-vs-v3 API question (§5.2) stays open until a real instance exists to
-  probe; v3 would remove the token-in-query-string problem at the root and is
-  the preferred outcome of that probe.
+- The v1-vs-v3 API question (§5.2) is **settled: v3**, decided against the live
+  instance on 2026-08-18 — see [ADR 0002](0002-nightscout-api-v3.md).
