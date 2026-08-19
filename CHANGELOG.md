@@ -9,6 +9,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `nightscout_current_glucose` — dernier relevé avec **son âge** et un signalement de péremption
+- `nightscout_glucose_episodes` — épisodes hypo/hyper comme intervalles : un pourcentage de temps
+  hors cible ne distingue pas un long épisode de quinze courts
+- `nightscout_therapy_profile` — basal, ISF, ICR, cibles, DIA, **avec leur segmentation horaire**
+- `comparePrevious` sur `nightscout_glucose_summary` — période précédente de même durée et écarts,
+  avec avertissement si les couvertures ne sont pas comparables
 - Lint (`oxlint`) et intégration continue (GitHub Actions, Node 20/22/24). La CI démarre le
   serveur pour de vrai : elle vérifie qu'il répond à `initialize`, que stdout ne porte que du
   JSON-RPC, et que le portail refuse une URL non-`https`

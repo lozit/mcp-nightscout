@@ -219,3 +219,61 @@ describe("la fenêtre calendaire ne déborde pas — régression du 2026-08-17",
     expect(out.count).toBe(288);
   });
 });
+
+describe("comparaison avec la période précédente", () => {
+  const TZ = {
+    defaultProfile: "Default",
+    units: "mg/dl",
+    store: { Default: { units: "mg/dl", timezone: "Europe/Paris" } },
+  };
+
+  it("compare deux fenêtres glissantes de même durée", async () => {
+    const NOW = 2_000_000_000_000;
+    const { client } = makeClient([
+      [PROFILE],
+      entries(150, 288, NOW - 288 * 300_000), // courante
+      [PROFILE],
+      entries(170, 288, NOW - 86_400_000 - 288 * 300_000), // précédente
+    ]);
+    const out = await glucoseSummary(client, { days: 1, comparePrevious: true }, () => NOW);
+
+    expect(out.mean).toBe(150);
+    expect(out.comparison?.previous.mean).toBe(170);
+    expect(out.comparison?.delta.mean).toBe(-20); // courant moins précédent
+  });
+
+  it("compare la veille calendaire, pas 24 h glissantes", async () => {
+    const { client, readFetch } = makeClient([
+      [TZ],
+      entries(150, 10, Date.UTC(2026, 7, 16, 23, 0, 0)),
+      [TZ],
+      entries(170, 10, Date.UTC(2026, 7, 15, 23, 0, 0)),
+    ]);
+    const out = await glucoseSummary(client, { date: "2026-08-17", comparePrevious: true });
+
+    expect(out.comparison?.previous.window).toContain("2026-08-16");
+    expect(out.comparison?.previous.window).toContain("Europe/Paris");
+    expect(readFetch).toHaveBeenCalledTimes(4); // profil + entries, deux fois
+  });
+
+  it("avertit quand les couvertures ne sont pas comparables", async () => {
+    // Une moyenne sur 12 relevés et une sur 288 ne décrivent pas la même chose,
+    // même quand l'écart de moyenne est net.
+    const NOW = 2_000_000_000_000;
+    const { client } = makeClient([
+      [PROFILE],
+      entries(150, 288, NOW - 288 * 300_000),
+      [PROFILE],
+      entries(170, 12, NOW - 86_400_000 - 12 * 300_000),
+    ]);
+    const out = await glucoseSummary(client, { days: 1, comparePrevious: true }, () => NOW);
+    expect(out.comparison?.caveats.join(" ")).toContain("Coverage differs markedly");
+  });
+
+  it("ne compare rien si on ne le demande pas", async () => {
+    const { client, readFetch } = makeClient([[PROFILE], entries(150, 10, 1_999_990_000_000)]);
+    const out = await glucoseSummary(client, { days: 1 }, () => 2_000_000_000_000);
+    expect(out.comparison).toBeUndefined();
+    expect(readFetch).toHaveBeenCalledTimes(2); // pas de second aller-retour
+  });
+});
