@@ -7,15 +7,22 @@ This file differs from the long-term roadmap (`docs/ROADMAP.md`): it describes w
 
 ## In progress
 
-  `docs/SECURITY.md` § Incidents survenus.
-
 - [ ] **Milestone 4 — élargir la surface d'outils** (~10 en lecture). Deux existent. La
   plomberie, les unités, la pagination et la neutralisation sont posées et éprouvées ; ce qui
   reste est de l'ajout d'outils, pas de la fondation.
 
 ## Up next
 
-- [ ] First read tool end-to-end against a real instance, to validate the whole chain before widening.
+- [ ] **Remettre `README.md` à jour** — il annonce « Pre-code » et « no code yet » alors que deux
+  outils tournent et sont vérifiés contre une instance réelle. C'est le fichier que lisent les
+  visiteurs d'un dépôt public : il est faux aujourd'hui.
+- [ ] **Trancher la neutralisation du texte libre par un ADR** avant d'ajouter des outils. La
+  stratégie est provisoire et centralisée dans un fichier ; la changer après cinq outils coûtera
+  cinq fois plus.
+- [ ] **Câbler un lint** — `npm run typecheck` est le seul garde-fou statique aujourd'hui.
+  Une règle interdisant `console.log` dans `src/` a une valeur propre ici : stdout est le canal
+  JSON-RPC.
+- [ ] **CI** — les deux repos MCP maison en ont une ; ici rien ne vérifie une PR.
 
 ## Ideas — to triage
 
@@ -35,11 +42,12 @@ This file differs from the long-term roadmap (`docs/ROADMAP.md`): it describes w
   est également écrit par un tiers (l'uploader) et présent dans les données réelles. La
   neutralisation du texte libre peut donc être conçue et testée sur `device` maintenant, puis
   étendue à `notes` sans rien redécouvrir le jour où des traitements existent.
-- [ ] **Which `units` is authoritative** — the profile carries `units` both at top level and
-  inside `store[<name>]`. They agree today (single profile) and will diverge silently later. Read
-  from the active store entry and fail loudly on disagreement until settled.
 
 ## Recently done
+
+- [x] **Ambiguïté des unités traitée** (2026-08-18) — le profil porte `units` à deux endroits.
+  `resolveUnit` lit l'entrée de `store` active et **échoue bruyamment** en cas de désaccord,
+  plutôt que d'en préférer une silencieusement.
 
 - [x] **Milestone 5 clos — agrégats vérifiés contre Nightscout** (2026-08-18) — `nightscout_glucose_summary` :
   moyenne, médiane, écart-type (n-1), CV, GMI et les cinq bandes du consensus, sur fenêtre
