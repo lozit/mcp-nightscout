@@ -34,10 +34,30 @@ export interface GlucoseSummary extends Summary {
   readonly until: string;
   /** Comment la fenêtre a été cadrée — décisif pour comparer à un rapport. */
   readonly window: string;
+  /** Présent seulement si `comparePrevious` a été demandé. */
+  readonly comparison?: Comparison;
+}
+
+export interface Comparison {
+  readonly previous: GlucoseSummary;
+  /** Écarts courant − précédent, sur les chiffres qui se comparent. */
+  readonly delta: {
+    readonly mean: number;
+    readonly cv: number;
+    readonly gmi: number;
+    readonly inRange: number;
+  };
+  readonly caveats: readonly string[];
 }
 
 export interface SummaryOptions {
   readonly days?: number | undefined;
+  /**
+   * Calcule aussi la période immédiatement précédente, de même durée, et les
+   * écarts (ADR 0006 : même granularité de sortie, donc un paramètre et non un
+   * outil).
+   */
+  readonly comparePrevious?: boolean | undefined;
   /**
    * Jour calendaire `YYYY-MM-DD`, cadré minuit→minuit dans le fuseau du profil.
    *
@@ -129,7 +149,7 @@ export async function glucoseSummary(
     );
   }
 
-  return {
+  const result: GlucoseSummary = {
     ...summary,
     caveats,
     days,
@@ -137,4 +157,59 @@ export async function glucoseSummary(
     until: new Date(until ?? now()).toISOString(),
     window,
   };
+
+  if (!options.comparePrevious) return result;
+
+  // Période précédente, cadrée **de la même façon** que la courante : appel récursif
+  // sans `comparePrevious`, pour ne pas dupliquer la logique de cadrage et pour que
+  // les deux périodes soient mesurées exactement pareil.
+  //
+  // Le mode calendaire ne peut pas être reproduit par une durée : un jour de
+  // bascule horaire dure 23 ou 25 h, et `days` y vaut 0,958 — que `clampDays`
+  // arrondirait à une journée glissante de 24 h. On calcule donc la veille en
+  // date, et le cadrage refait le reste.
+  const previous = options.date
+    ? await glucoseSummary(client, { date: previousDay(options.date) }, now)
+    : await glucoseSummary(client, { days }, () => since);
+
+  const comparisonCaveats: string[] = [
+    "Deltas are current minus previous. A difference is only meaningful if both periods have " +
+      "comparable coverage — check `coverage` on each before reading anything into it.",
+  ];
+  if (Math.abs(previous.coverage - result.coverage) > 0.2) {
+    comparisonCaveats.push(
+      `Coverage differs markedly between the periods (${Math.round(result.coverage * 100)}% vs ` +
+        `${Math.round(previous.coverage * 100)}%). The comparison describes different amounts of ` +
+        "data, not necessarily different glucose.",
+    );
+  }
+
+  return {
+    ...result,
+    comparison: {
+      previous,
+      delta: {
+        mean: round1(result.mean - previous.mean),
+        cv: round1(result.cv - previous.cv),
+        gmi: round1(result.gmi - previous.gmi),
+        inRange: round1(result.bands.inRange - previous.bands.inRange),
+      },
+      caveats: comparisonCaveats,
+    },
+  };
+}
+
+function round1(v: number): number {
+  return Math.round(v * 10) / 10;
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/** Veille d'une date `YYYY-MM-DD`, en arithmétique de calendrier pure. */
+function previousDay(date: string): string {
+  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
+  const prev = new Date(Date.UTC(y, m - 1, d - 1));
+  return `${prev.getUTCFullYear()}-${pad2(prev.getUTCMonth() + 1)}-${pad2(prev.getUTCDate())}`;
 }

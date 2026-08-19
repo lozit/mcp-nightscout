@@ -7,7 +7,7 @@
 
 ## Status
 
-**Working, early.** Two tools ship and have been exercised against a real Nightscout
+**Working, early.** Five tools ship, two of them exercised against a real Nightscout
 instance (v15.0.7) over API v3. 131 tests. Version `0.0.0` — the tool surface is still
 moving, and nothing is published anywhere.
 
@@ -17,17 +17,24 @@ against Nightscout's own Distribution report** — mean, median and standard dev
 to the rounding, and the two remaining gaps are documented conventions rather than
 unexplained drift ([ADR 0004](docs/decisions/0004-aggregation-method.md)).
 
-What is not: roughly half the intended tool surface, and anything touching `treatments`
-(see [Limits](#limits)).
+What is not: anything touching `treatments` (see [Limits](#limits)), and publication anywhere.
 
 ## Tools
 
 | Tool | What it returns |
 |---|---|
-| `nightscout_recent_glucose` | Recent CGM readings over a window of up to 24 h, with trend and the resolved unit. Non-CGM entries are discarded and counted. |
-| `nightscout_glucose_summary` | Mean, median, sample SD, CV, GMI and the five consensus time-in-range bands, over a sliding window of N days **or a single calendar day** framed in the profile's time zone. |
+| `nightscout_current_glucose` | The latest reading, its trend, and **its age** — a four-hour-old value reads exactly like a fresh one otherwise. |
+| `nightscout_recent_glucose` | Recent readings over a window of up to 24 h. Non-CGM entries are discarded and counted. |
+| `nightscout_glucose_summary` | Mean, median, sample SD, CV, GMI and the five consensus bands, over N days **or a single calendar day** in the profile's time zone. `comparePrevious` adds the preceding period and the deltas. |
+| `nightscout_glucose_episodes` | Hypo/hyper crossings as **intervals** — duration, peak, severity. 5% below range is one 75-minute low or fifteen 5-minute ones, and a percentage cannot tell them apart. |
+| `nightscout_therapy_profile` | Basal, ISF, ICR, targets and DIA. Every value except DIA is **time-segmented**; a single figure for ISF is wrong by construction. |
 
-Both are read-only and cap their own volume server-side.
+All read-only, all capping their own volume server-side. Roughly 1 000 tokens of tool
+descriptions per conversation.
+
+Output granularity decides the window cap, so it is a tool rather than a parameter — that is
+why comparing two periods is a flag on the summary and not a sixth tool
+([ADR 0006](docs/decisions/0006-tool-granularity.md)).
 
 ## Setup
 

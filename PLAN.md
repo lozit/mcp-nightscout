@@ -7,21 +7,15 @@ This file differs from the long-term roadmap (`docs/ROADMAP.md`): it describes w
 
 ## In progress
 
-- [ ] **Milestone 4 — élargir la surface d'outils** (~10 en lecture). Deux existent. La
-  plomberie, les unités, la pagination et la neutralisation sont posées et éprouvées ; ce qui
-  reste est de l'ajout d'outils, pas de la fondation.
+- [ ] **Éprouver les trois nouveaux outils contre l'instance réelle.** `current_glucose`,
+  `therapy_profile` et `episodes` n'ont tourné que sur des données simulées. Les deux premiers
+  outils avaient tous deux révélé un défaut au premier contact avec de vraies données.
 
 ## Up next
 
-- [ ] **Choisir les prochains outils.** `treatments` et `devicestatus` étant vides, la cible de
-  « ~10 outils » de l'ADR 0001 n'a plus de sens telle quelle : ce qui reste de faisable sur
-  `entries` + `profile` fait quatre ou cinq outils utiles, pas dix. Candidats : lecture du profil
-  thérapeutique (en portant la segmentation horaire, jamais un scalaire), coup d'œil dernier
-  relevé + tendance, détection d'épisodes hypo/hyper, comparaison de deux périodes.
 
 ## Ideas — to triage
 
-- [ ] Decide whether aggregates are separate tools or parameters on the read tools.
 
 ## Waiting / blocked
 
@@ -38,6 +32,13 @@ This file differs from the long-term roadmap (`docs/ROADMAP.md`): it describes w
   étendue à `notes` sans rien redécouvrir le jour où des traitements existent.
 
 ## Recently done
+
+- [x] **Milestone 4 — surface d'outils élargie** (2026-08-19) — cinq outils :
+  `current_glucose` (avec l'âge du relevé), `therapy_profile` (segmenté), `glucose_episodes`
+  (intervalles), plus `comparePrevious` sur le résumé. Critère de découpage fixé par
+  [ADR 0006](docs/decisions/0006-tool-granularity.md) : la granularité de sortie détermine le
+  plafond de fenêtre, donc elle est un outil ; le reste est un paramètre — ce qui a **retiré**
+  un outil sur les quatre envisagés. ~1 010 tokens de descriptions. **166 tests.**
 
 - [x] **Lint et CI câblés** (2026-08-19) — oxlint plutôt qu'ESLint : `typescript-eslint` exige
   `typescript <6.1.0` et le projet est en 7.0.2 (ADR 0003), forcer ferait tourner son parser sur
