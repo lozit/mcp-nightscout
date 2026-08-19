@@ -86,12 +86,14 @@ Neither is up for reopening without a new ADR.
 - **`treatments` and `devicestatus` are untested.** They were empty on the instance used to
   build this, so no tool reads them yet, no insulin- or carb-dependent figure exists, and
   the shape of the `notes` field is unknown.
-- **Free-text neutralization is provisional.** Third-party-written fields (`device` today,
-  `notes` later) are stripped of control characters, truncated and tagged `[untrusted:…]`
-  before reaching the model. The module deliberately does **not** try to detect
-  instructions: any pattern list is bypassable, and shipping one would trade a real bound
-  for a false sense of safety. The strategy is centralized in one file so changing it costs
-  one file.
+- **Free-text neutralization bounds an injection, it does not prevent one.**
+  Third-party-written fields (`device` today, `notes` later) are stripped of control
+  characters, truncated, tagged `[untrusted:…]`, and published **once per response** with
+  readings referencing them by integer index — so a hostile payload appears one time rather
+  than 288. The module deliberately does **not** try to detect instructions: any pattern
+  list is bypassable, and shipping one would trade a real bound for a false sense of
+  safety. Hostile text still reaches the model, on one line, bounded and labelled
+  ([ADR 0005](docs/decisions/0005-free-text-neutralization.md)).
 - **Band percentages are shares of readings, not time-weighted.** They coincide only while
   readings are evenly spaced. Every response carries its own `coverage` so a figure
   computed over a sparse window announces itself.

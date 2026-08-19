@@ -31,6 +31,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - ADR 0002 — talk to Nightscout over API v3, decided against the live instance (version 15.0.7): the readable token is exchanged once for a JWT and every read is Bearer-authenticated in-header, so the token leaves every data-fetch URL
 
 ### Changed
+- Les champs tiers-écrits ne sont plus répétés à chaque relevé : les valeurs distinctes sont
+  publiées une fois dans `devices` et référencées par index entier. Une charge utile hostile
+  apparaît une fois au lieu de 288 sur une fenêtre de 24 h
+  ([ADR 0005](docs/decisions/0005-free-text-neutralization.md))
 
 ### Deprecated
 

@@ -37,6 +37,7 @@ third-party repository as vulnerable. `0001` is the model to follow.
 | [0002](0002-nightscout-api-v3.md) | Talk to Nightscout over API v3 | Accepted | 2026-08-18 |
 | [0003](0003-dependency-majors.md) | Dependency majors: TypeScript 7, zod 4, @types/node 26 | Accepted | 2026-08-18 |
 | [0004](0004-aggregation-method.md) | Méthode d'agrégation glycémique | Accepted | 2026-08-18 |
+| [0005](0005-free-text-neutralization.md) | Neutralisation du texte libre tiers-écrit | Accepted | 2026-08-19 |
 
 ## Decisions closed by 0001 — reopening requires a new ADR
 
@@ -50,7 +51,6 @@ third-party repository as vulnerable. `0001` is the model to follow.
 
 ## Known open questions awaiting an ADR
 
-- **Free-text neutralization strategy** for `notes` — delimit, truncate, or strip (`docs/SECURITY.md`).
 - **Identifier validation under v3** — constraint #4 is written for a Mongo ObjectId
   (`^[0-9a-fA-F]{24}$`), which is a v1 shape. v3 addresses documents by an `identifier` field whose
   guaranteed form has not been probed. Settle it against the instance before the client validates

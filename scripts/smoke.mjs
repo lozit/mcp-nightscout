@@ -110,7 +110,10 @@ try {
   const first = payload.readings?.[0];
   if (first) {
     console.log("\n=== CONTRAINTE #6 — champ tiers-écrit ===");
-    console.log("device :", first.device);
+    console.log("valeurs distinctes :", payload.devices?.length ?? 0,
+      "(publiées une fois, pas par relevé — ADR 0005)");
+    for (const d of payload.devices ?? []) console.log("  ", d);
+    console.log("index dans le relevé :", first.device, "(un entier, il ne peut rien porter)");
     console.log("\n=== FORME D'UN RELEVÉ ===");
     console.log(JSON.stringify(shape(first), null, 2));
   }

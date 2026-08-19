@@ -78,7 +78,7 @@ gate: right kind of credential, right URL scheme, or the process does not start.
 
 | Surface | Control |
 |---|---|
-| **Free-text fields from the instance** (`notes` above all) | Third-party-writable by any uploader or integration with write access, and reaching the model verbatim by default. This is the **prompt-injection vector**. Read-only removes the exploitable consequence, not the vector — free text must be **neutralized** (delimited, truncated, or stripped) before entering any tool result. Strategy not yet settled; it warrants its own ADR. |
+| **Free-text fields from the instance** (`notes` above all) | Third-party-writable by any uploader or integration with write access, and reaching the model verbatim by default. This is the **prompt-injection vector**. Read-only removes the exploitable consequence, not the vector. Strategy settled by [ADR 0005](decisions/0005-free-text-neutralization.md): control characters and Unicode line separators normalized, structure characters stripped, truncated at 200, tagged `[untrusted:…]`, and **deduplicated** — distinct values published once per response and referenced by integer index, so a hostile payload appears once rather than 288 times over 24 h. No attempt is made to *detect* instructions. |
 | **Identifiers interpolated into URLs** | Validated before use — Mongo ObjectId = `^[0-9a-fA-F]{24}$`. HTTP clients normalize `..` segments per RFC 3986, so an unvalidated id turns a scoped request into an arbitrary one against any collection. |
 | **Volume requested by the model** | Capped server-side; date ranges bounded. Never left to the model's choice. |
 | **Transport** | HTTPS enforced at boot. No inbound transport exists. |

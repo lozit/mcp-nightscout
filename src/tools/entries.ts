@@ -1,5 +1,5 @@
 import type { NightscoutClient } from "../upstream/client.js";
-import { asUntrustedField } from "../domain/freetext.js";
+import { UntrustedFieldIndex } from "../domain/freetext.js";
 import { fromStorage, resolveUnit, targetRange, type GlucoseUnit } from "../domain/units.js";
 import { UpstreamContractError } from "../upstream/errors.js";
 
@@ -23,8 +23,13 @@ export interface Reading {
   readonly value: number;
   readonly unit: GlucoseUnit;
   readonly trend: string | undefined;
-  /** Champ tiers-écrit : neutralisé et balisé (contrainte #6). */
-  readonly device: string;
+  /**
+   * Index dans `devices` de la réponse, pas la valeur.
+   *
+   * Le champ est tiers-écrit : le publier une fois plutôt qu'à chaque relevé
+   * réduit la surface d'injection de 288 occurrences à une (ADR 0005 §4).
+   */
+  readonly device: number;
 }
 
 export interface RecentGlucose {
@@ -32,6 +37,8 @@ export interface RecentGlucose {
   readonly targetRange: { readonly low: number; readonly high: number };
   readonly windowHours: number;
   readonly count: number;
+  /** Valeurs distinctes de `device`, neutralisées et balisées. Index depuis `readings[].device`. */
+  readonly devices: readonly string[];
   readonly readings: readonly Reading[];
   /** Renseigné quand quelque chose a été écarté — le silence serait trompeur. */
   readonly notes: readonly string[];
@@ -53,9 +60,14 @@ interface RawEntry {
 export function toReadings(
   raw: readonly unknown[],
   unit: GlucoseUnit,
-): { readonly readings: readonly Reading[]; readonly notes: readonly string[] } {
+): {
+  readonly readings: readonly Reading[];
+  readonly devices: readonly string[];
+  readonly notes: readonly string[];
+} {
   const notes: string[] = [];
   const readings: Reading[] = [];
+  const devices = new UntrustedFieldIndex("device");
   let skippedType = 0;
   let skippedShape = 0;
 
@@ -81,7 +93,7 @@ export function toReadings(
       value: fromStorage(e.sgv, unit),
       unit,
       trend: typeof e.direction === "string" ? e.direction : undefined,
-      device: asUntrustedField("device", e.device),
+      device: devices.indexOf(e.device),
     });
   }
 
@@ -92,7 +104,7 @@ export function toReadings(
     notes.push(`${skippedShape} entries skipped: missing or non-numeric sgv/date.`);
   }
 
-  return { readings, notes };
+  return { readings, devices: devices.values(), notes };
 }
 
 /** Borne la fenêtre demandée, sans jamais faire confiance à l'argument reçu. */
@@ -124,13 +136,14 @@ export async function recentGlucose(
     params: { "date$gte": since, "sort$desc": "date" },
   });
 
-  const { readings, notes } = toReadings(raw, unit);
+  const { readings, devices, notes } = toReadings(raw, unit);
 
   return {
     unit,
     targetRange: targetRange(unit),
     windowHours,
     count: readings.length,
+    devices,
     readings,
     notes,
   };

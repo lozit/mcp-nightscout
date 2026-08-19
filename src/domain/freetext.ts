@@ -9,10 +9,9 @@
  * injectée dans ce serveur, pas le **vecteur** : le texte entre quand même dans le
  * contexte, et le modèle dispose d'autres outils.
  *
- * ATTENTION — **stratégie provisoire, en attente d'un ADR.** Ce qui est implémenté
- * ici est le parti conservateur ; la décision de fond (délimiter / tronquer /
- * stripper) n'est pas tranchée. Le point de passage est unique et centralisé
- * exprès : changer de stratégie doit être un changement d'un seul fichier.
+ * Stratégie arrêtée par [ADR 0005](../../docs/decisions/0005-free-text-neutralization.md).
+ * Le point de passage est unique et centralisé exprès : changer de stratégie doit
+ * rester un changement d'un seul fichier.
  *
  * Ce que ce module ne fait **pas**, délibérément : chercher à *détecter* des
  * instructions. Filtrer « ignore les instructions précédentes » et consorts est une
@@ -85,4 +84,42 @@ export function asUntrustedField(name: string, raw: unknown): string {
   const { value, modified } = neutralize(raw);
   const suffix = modified ? " (neutralized)" : "";
   return `[untrusted:${name}${suffix}] ${value}`;
+}
+
+/**
+ * Collecte les valeurs distinctes d'un champ tiers-écrit et les remplace par un
+ * index (ADR 0005 §4).
+ *
+ * Sur une fenêtre de 24 h, `device` est identique sur les 288 relevés. Le répéter
+ * coûte 27 % du poids de chaque relevé — mais surtout, il présente **288 fois** la
+ * même surface d'injection au lieu d'une. La répétition est en elle-même un levier :
+ * un texte répété des centaines de fois pèse davantage sur un modèle qu'une
+ * occurrence unique, quel que soit son contenu.
+ *
+ * L'index rendu est un entier : il ne peut rien porter.
+ */
+export class UntrustedFieldIndex {
+  readonly #name: string;
+  readonly #byValue = new Map<string, number>();
+  readonly #values: string[] = [];
+
+  constructor(name: string) {
+    this.#name = name;
+  }
+
+  /** Index de la valeur, en la neutralisant et en la déduplicant au passage. */
+  indexOf(raw: unknown): number {
+    const tagged = asUntrustedField(this.#name, raw);
+    const known = this.#byValue.get(tagged);
+    if (known !== undefined) return known;
+    const next = this.#values.length;
+    this.#values.push(tagged);
+    this.#byValue.set(tagged, next);
+    return next;
+  }
+
+  /** Valeurs distinctes, neutralisées et balisées, dans l'ordre des index. */
+  values(): readonly string[] {
+    return this.#values;
+  }
 }

@@ -80,20 +80,38 @@ request that does carry the token. Validates every identifier it interpolates in
 > documents by an `identifier` field whose guaranteed form is unprobed. Settle it before writing
 > the guard — and if a real call fails against it, probe rather than relax it.
 
-### Tool layer
+### Tool layer — `src/tools/` (2 outils)
 
-~10 read tools. Each caps volume server-side and bounds date ranges, whatever the model asks
-for. No tool writes.
+`nightscout_recent_glucose` et `nightscout_glucose_summary`. Chaque outil borne sa fenêtre,
+s'appuie sur le plafond de volume du client, et aucun n'écrit.
 
-### Sanitizer
+Deux choses que ces outils établissent comme modèle pour les suivants :
+- **Ils lisent le profil avant les données.** Sans unité résolue, un chiffre publié n'a pas de
+  sens ; mieux vaut un appel de plus qu'une moyenne fausse d'un facteur 18.
+- **Ils comptent et signalent ce qu'ils écartent.** `entries` mélange `sgv`, `mbg` et `cal` ;
+  filtrer en silence donnerait un décompte inexplicable côté modèle.
 
-Neutralizes third-party-writable free text (notably `notes`) on the way out. Read-only removes
-the exploitable *consequence* of an injected instruction, not the *vector* — this component is
-what addresses the vector.
+### Sanitizer — `src/domain/freetext.ts`
 
-### Aggregator
+Neutralise le texte libre tiers-écrit en sortie. La lecture seule supprime la *conséquence*
+exploitable d'une instruction injectée, pas le *vecteur* — c'est ce composant qui traite le
+vecteur.
 
-Computes mean, TIR, CV and GMI **server-side and deterministically**. Its purpose is volume
+Appliqué à `entries.device`, qui a le même statut que `notes` et présente l'avantage d'exister
+dans les données réelles. Stratégie arrêtée par
+[ADR 0005](decisions/0005-free-text-neutralization.md) : contrôles et séparateurs Unicode
+normalisés, caractères de structure retirés, troncature à 200 caractères, balisage
+`[untrusted:<champ>]` — et **déduplication**, les valeurs distinctes étant publiées une fois par
+réponse et référencées par index entier. Sur 24 h, la même charge utile potentielle apparaissait
+288 fois ; elle apparaît une fois.
+
+Ce qu'il ne fait **pas**, délibérément : détecter des instructions. Toute liste de motifs se
+contourne, et en livrer une échangerait une borne réelle contre une fausse assurance.
+
+### Aggregator — `src/domain/aggregates.ts`
+
+Computes mean, median, SD, CV, GMI and the consensus bands **server-side and deterministically**,
+en mg/dL, converti seulement en sortie ([ADR 0004](decisions/0004-aggregation-method.md)). Its purpose is volume
 reduction, not intelligence: the model must never do arithmetic over thousands of readings.
 
 ## Main flows
@@ -119,6 +137,7 @@ reduction, not intelligence: the model must never do arithmetic over thousands o
 - **JWT lifetime is unmeasured** — the re-exchange path (401 on a previously-working read) is
   the least-tested branch by nature, and the one that fails at 3am. Give it a deliberate test.
 - **Identifier validation shape is unresolved under v3** — see the client component above.
-- **The sanitizer has no settled strategy yet** (delimit / truncate / strip). Likely its own ADR.
+- **La neutralisation n'est éprouvée que sur `device`.** Le contrat ne changera pas pour `notes`,
+  mais la longueur typique des valeurs, si — re-vérifier le jour où `treatments` porte des données.
 - **Correct-looking aggregates are the quiet risk** — they must be checked by hand against
   Nightscout's reports, not merely reviewed.

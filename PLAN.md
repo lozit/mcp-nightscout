@@ -16,9 +16,6 @@ This file differs from the long-term roadmap (`docs/ROADMAP.md`): it describes w
 - [ ] **Remettre `README.md` à jour** — il annonce « Pre-code » et « no code yet » alors que deux
   outils tournent et sont vérifiés contre une instance réelle. C'est le fichier que lisent les
   visiteurs d'un dépôt public : il est faux aujourd'hui.
-- [ ] **Trancher la neutralisation du texte libre par un ADR** avant d'ajouter des outils. La
-  stratégie est provisoire et centralisée dans un fichier ; la changer après cinq outils coûtera
-  cinq fois plus.
 - [ ] **Câbler un lint** — `npm run typecheck` est le seul garde-fou statique aujourd'hui.
   Une règle interdisant `console.log` dans `src/` a une valeur propre ici : stdout est le canal
   JSON-RPC.
@@ -26,7 +23,6 @@ This file differs from the long-term roadmap (`docs/ROADMAP.md`): it describes w
 
 ## Ideas — to triage
 
-- [ ] Decide the free-text neutralization strategy for `notes` (delimit / truncate / strip) — likely deserves its own ADR.
 - [ ] Decide whether aggregates are separate tools or parameters on the read tools.
 
 ## Waiting / blocked
@@ -44,6 +40,13 @@ This file differs from the long-term roadmap (`docs/ROADMAP.md`): it describes w
   étendue à `notes` sans rien redécouvrir le jour où des traitements existent.
 
 ## Recently done
+
+- [x] **Neutralisation du texte libre tranchée** (2026-08-19) —
+  [ADR 0005](docs/decisions/0005-free-text-neutralization.md). Décision manquante ajoutée : les
+  valeurs distinctes sont publiées une fois et référencées par index entier, donc une charge
+  utile hostile apparaît une fois au lieu de 288 sur 24 h. La répétition est elle-même un levier.
+- [x] **README remis à jour** (2026-08-19) — il annonçait « Pre-code » alors que deux outils
+  tournaient et étaient vérifiés.
 
 - [x] **Ambiguïté des unités traitée** (2026-08-18) — le profil porte `units` à deux endroits.
   `resolveUnit` lit l'entrée de `store` active et **échoue bruyamment** en cas de désaccord,
