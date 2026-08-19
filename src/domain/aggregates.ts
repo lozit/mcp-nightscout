@@ -137,7 +137,7 @@ export function summarize(
     );
   }
 
-  const dates = [...byDate.keys()].sort((a, b) => a - b);
+  const dates = [...byDate.keys()].toSorted((a, b) => a - b);
   const sgvMgdl = dates.map((d) => byDate.get(d)!);
   const n = sgvMgdl.length;
 
@@ -147,8 +147,7 @@ export function summarize(
   if (dates.length >= 2) {
     const gaps: number[] = [];
     for (let i = 1; i < dates.length; i += 1) gaps.push((dates[i]! - dates[i - 1]!) / 1000);
-    gaps.sort((a, b) => a - b);
-    medianIntervalSeconds = Math.round(median(gaps));
+    medianIntervalSeconds = Math.round(median(gaps.toSorted((a, b) => a - b)));
   }
 
   const meanMgdl = sgvMgdl.reduce((a, b) => a + b, 0) / n;
@@ -227,7 +226,7 @@ export function summarize(
     duplicatesDropped,
     medianIntervalSeconds,
     mean: conv(meanMgdl),
-    median: conv(median(sgvMgdl.slice().sort((a, b) => a - b))),
+    median: conv(median(sgvMgdl.toSorted((a, b) => a - b))),
     // L'écart-type est un écart, pas une mesure : il se convertit par le facteur
     // d'échelle, sans décalage. Passer par `fromStorage` reste correct puisque la
     // conversion mg/dL→mmol/L est purement multiplicative.

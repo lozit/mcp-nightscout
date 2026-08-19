@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConfigError, configFromEnv } from "./config.js";
-import { _resetSecrets, scrubString } from "./security/secrets.js";
+import { resetSecretsForTests, scrubString } from "./security/secrets.js";
 import { FAKE_TOKEN, FAKE_HASHED_SECRET } from "./testing/fixtures.js";
 
-afterEach(() => _resetSecrets());
+afterEach(() => resetSecretsForTests());
 
 const TOKEN = FAKE_TOKEN;
 const ok = { NIGHTSCOUT_URL: "https://ns.example.example", NIGHTSCOUT_TOKEN: TOKEN };

@@ -71,6 +71,14 @@ passent (33 tests).
   repo à l'autre — en particulier tout schéma zod.
 - TypeScript 7 est le compilateur natif, récent. En cas de comportement suspect,
   la première hypothèse à tester est le compilateur, pas le code.
+- **Coût constaté le 2026-08-19** : `typescript-eslint` déclare
+  `peer typescript ">=4.8.4 <6.1.0"` et refuse donc de s'installer. Forcer avec
+  `--legacy-peer-deps` ferait tourner son parser sur une API TypeScript qu'il ne
+  connaît pas — mauvais pari pour un outil qui exploite cette API en profondeur.
+  Le lint est donc assuré par **oxlint**, qui n'en dépend pas. C'est le premier
+  outil de l'écosystème que cette décision écarte ; il y en aura d'autres, et le
+  critère reste le même : préférer un outil indépendant de la version de
+  TypeScript plutôt que forcer une résolution que l'auteur amont déclare invalide.
 
 ### Neutres — un constat mesuré au passage, qui nuance l'ADR 0001
 L'ADR 0001 annonçait « une empreinte de 3 dépendances runtime ». C'est vrai des

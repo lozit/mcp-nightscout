@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Le job ne lit rien d'autre que le dépôt, et n'écrit nulle part.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # La borne basse est celle de `engines.node`. La haute attrape ce qui
+        # casserait sur une version que les hôtes MCP peuvent déjà utiliser.
+        node: [20, 22, 24]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      # `npm ci` échoue si le lockfile diverge de package.json — c'est la
+      # vérification de la contrainte #1 (dépendances épinglées, lockfile commité).
+      - run: npm ci
+
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+      # Le serveur est stdio : s'il ne répond pas à `initialize`, rien d'autre ne
+      # marchera. Les tests unitaires ne le démarrent jamais vraiment.
+      - name: Le serveur démarre et répond sur stdio
+        env:
+          NIGHTSCOUT_URL: https://ci.example.example
+          NIGHTSCOUT_TOKEN: example-0123456789abcdef
+        run: |
+          # Le `sleep` n'est pas cosmétique : sans lui le pipe se ferme aussitôt,
+          # le transport stdio voit EOF et s'arrête avant d'avoir répondu.
+          { printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}'; sleep 3; } \
+            | timeout 30 node dist/index.js > out.json
+          grep -q '"serverInfo"' out.json
+          # stdout ne doit porter que du JSON-RPC : chaque ligne doit parser.
+          while read -r line; do
+            printf '%s' "$line" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>JSON.parse(d))'
+          done < out.json
+
+      - name: Le portail de démarrage refuse une URL non-https
+        env:
+          NIGHTSCOUT_URL: http://ci.example.example
+          NIGHTSCOUT_TOKEN: example-0123456789abcdef
+        run: |
+          if node dist/index.js < /dev/null; then
+            echo "Le serveur a démarré sur http:// — la contrainte #7 ne tient plus"
+            exit 1
+          fi

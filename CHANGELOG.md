@@ -9,6 +9,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Lint (`oxlint`) et intégration continue (GitHub Actions, Node 20/22/24). La CI démarre le
+  serveur pour de vrai : elle vérifie qu'il répond à `initialize`, que stdout ne porte que du
+  JSON-RPC, et que le portail refuse une URL non-`https`
 - `nightscout_glucose_summary` — agrégats déterministes côté serveur : moyenne, médiane,
   écart-type, CV, GMI et les cinq bandes du consensus, sur fenêtre glissante ou jour calendaire
   cadré dans le fuseau du profil. Vérifié à la main contre le rapport Nightscout

@@ -2,10 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { NightscoutAuth } from "./auth.js";
 import { MAX_LIMIT, NightscoutClient } from "./client.js";
 import { UpstreamContractError, UpstreamError } from "./errors.js";
-import { _resetSecrets } from "../security/secrets.js";
+import { resetSecretsForTests } from "../security/secrets.js";
 import { FAKE_TOKEN, FAKE_JWT_A, FAKE_JWT_B } from "../testing/fixtures.js";
 
-afterEach(() => _resetSecrets());
+afterEach(() => resetSecretsForTests());
 
 const BASE = "https://ns.example.example";
 const TOKEN = FAKE_TOKEN;
@@ -34,6 +34,10 @@ function makeClient(readResponses: Array<() => Response>, jwts = [JWT_A, JWT_B])
   );
   return { client, readFetch, authFetch };
 }
+
+/** Page de n documents dont `date` croît depuis `from`. */
+const page = (from: number, n: number, step = 300_000) =>
+  Array.from({ length: n }, (_, i) => ({ date: from + i * step, sgv: 120 }));
 
 describe("lecture v3", () => {
   it("renvoie result et envoie le JWT en en-tête, pas dans l'URL", async () => {
@@ -127,10 +131,6 @@ describe("contrat amont", () => {
 });
 
 describe("readWindow — pagination ascendante à filtre unique", () => {
-  /** Page de n documents dont `date` croît depuis `from`, pas de plus. */
-  const page = (from: number, n: number, step = 300_000) =>
-    Array.from({ length: n }, (_, i) => ({ date: from + i * step, sgv: 120 }));
-
   it("n'envoie jamais deux filtres sur le champ temporel", async () => {
     // Le défaut trouvé sur l'instance réelle : `date$gte` + `date$lt` ensemble
     // faisaient remonter tout l'historique au lieu de la fenêtre demandée.
@@ -221,9 +221,6 @@ describe("readWindow — pagination ascendante à filtre unique", () => {
 });
 
 describe("readWindow — les bornes sont vérifiées localement", () => {
-  const page = (from: number, n: number, step = 300_000) =>
-    Array.from({ length: n }, (_, i) => ({ date: from + i * step, sgv: 120 }));
-
   it("écarte ce qui précède la borne basse même si l'amont l'a laissé passer", async () => {
     // Le filtre serveur est un moyen, pas une garantie : un agrégat calculé sur
     // une fenêtre plus large que demandée ne lève rien, il rend un faux crédible.

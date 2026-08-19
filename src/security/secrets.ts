@@ -39,7 +39,7 @@ function variantsOf(secret: string): string[] {
 }
 
 function reindex(values: Iterable<string>): void {
-  registered = [...new Set(values)].sort((a, b) => b.length - a.length);
+  registered = [...new Set(values)].toSorted((a, b) => b.length - a.length);
 }
 
 /**
@@ -62,7 +62,7 @@ export function forgetSecret(secret: string | undefined | null): void {
 }
 
 /** Test seam. Never call this from server code. */
-export function _resetSecrets(): void {
+export function resetSecretsForTests(): void {
   registered = [];
 }
 

@@ -42,7 +42,7 @@ An MCP server giving Claude read-only access to a Nightscout instance: glucose r
 - Test: `npm test` (vitest, single run) · `npm run test:watch`
 - Typecheck: `npm run typecheck`
 - Build: `npm run build` (tsc → `dist/`)
-- Lint: not wired yet — `npm run typecheck` is the only static gate today.
+- Lint: `npm run lint` (oxlint). `no-console` y est **error** dans `src/` — stdout est le canal JSON-RPC.
 
 **Runtime deps are pinned to exact versions** (constraint #1), and `package-lock.json` is
 committed. Three of them, per ADR 0001: `@modelcontextprotocol/sdk`, `@napi-rs/keyring`, `zod`.

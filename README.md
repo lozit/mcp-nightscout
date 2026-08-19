@@ -17,8 +17,8 @@ against Nightscout's own Distribution report** — mean, median and standard dev
 to the rounding, and the two remaining gaps are documented conventions rather than
 unexplained drift ([ADR 0004](docs/decisions/0004-aggregation-method.md)).
 
-What is not: roughly half the intended tool surface, any lint or CI, and anything touching
-`treatments` (see [Limits](#limits)).
+What is not: roughly half the intended tool surface, and anything touching `treatments`
+(see [Limits](#limits)).
 
 ## Tools
 

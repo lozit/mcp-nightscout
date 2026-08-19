@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NightscoutAuth } from "./auth.js";
 import { UpstreamContractError, UpstreamError } from "./errors.js";
-import { _resetSecrets, scrubString } from "../security/secrets.js";
+import { resetSecretsForTests, scrubString } from "../security/secrets.js";
 import { FAKE_TOKEN, FAKE_JWT_A, FAKE_JWT_B } from "../testing/fixtures.js";
 
-afterEach(() => _resetSecrets());
+afterEach(() => resetSecretsForTests());
 
 const CONFIG = { baseUrl: "https://ns.example.example", token: FAKE_TOKEN };
 const JWT_A = FAKE_JWT_A;

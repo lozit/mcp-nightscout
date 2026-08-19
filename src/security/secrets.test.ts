@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  _resetSecrets,
+  resetSecretsForTests,
   forgetSecret,
   registerSecret,
   scrubString,
@@ -8,7 +8,7 @@ import {
 } from "./secrets.js";
 import { FAKE_OPAQUE_BLOB, FAKE_TOKEN, fakeJwt } from "../testing/fixtures.js";
 
-afterEach(() => _resetSecrets());
+afterEach(() => resetSecretsForTests());
 
 /**
  * The token measured on the live instance is 27 characters. This length is the

@@ -16,10 +16,6 @@ This file differs from the long-term roadmap (`docs/ROADMAP.md`): it describes w
 - [ ] **Remettre `README.md` à jour** — il annonce « Pre-code » et « no code yet » alors que deux
   outils tournent et sont vérifiés contre une instance réelle. C'est le fichier que lisent les
   visiteurs d'un dépôt public : il est faux aujourd'hui.
-- [ ] **Câbler un lint** — `npm run typecheck` est le seul garde-fou statique aujourd'hui.
-  Une règle interdisant `console.log` dans `src/` a une valeur propre ici : stdout est le canal
-  JSON-RPC.
-- [ ] **CI** — les deux repos MCP maison en ont une ; ici rien ne vérifie une PR.
 
 ## Ideas — to triage
 
@@ -40,6 +36,12 @@ This file differs from the long-term roadmap (`docs/ROADMAP.md`): it describes w
   étendue à `notes` sans rien redécouvrir le jour où des traitements existent.
 
 ## Recently done
+
+- [x] **Lint et CI câblés** (2026-08-19) — oxlint plutôt qu'ESLint : `typescript-eslint` exige
+  `typescript <6.1.0` et le projet est en 7.0.2 (ADR 0003), forcer ferait tourner son parser sur
+  une API qu'il ne connaît pas. `no-console` est *error* dans `src/`. CI sur Node 20/22/24, qui
+  démarre réellement le serveur et vérifie que stdout ne porte que du JSON-RPC et que le portail
+  refuse `http://`.
 
 - [x] **Neutralisation du texte libre tranchée** (2026-08-19) —
   [ADR 0005](docs/decisions/0005-free-text-neutralization.md). Décision manquante ajoutée : les
