@@ -13,9 +13,11 @@ This file differs from the long-term roadmap (`docs/ROADMAP.md`): it describes w
 
 ## Up next
 
-- [ ] **Remettre `README.md` à jour** — il annonce « Pre-code » et « no code yet » alors que deux
-  outils tournent et sont vérifiés contre une instance réelle. C'est le fichier que lisent les
-  visiteurs d'un dépôt public : il est faux aujourd'hui.
+- [ ] **Choisir les prochains outils.** `treatments` et `devicestatus` étant vides, la cible de
+  « ~10 outils » de l'ADR 0001 n'a plus de sens telle quelle : ce qui reste de faisable sur
+  `entries` + `profile` fait quatre ou cinq outils utiles, pas dix. Candidats : lecture du profil
+  thérapeutique (en portant la segmentation horaire, jamais un scalaire), coup d'œil dernier
+  relevé + tendance, détection d'épisodes hypo/hyper, comparaison de deux périodes.
 
 ## Ideas — to triage
 
