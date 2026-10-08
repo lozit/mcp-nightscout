@@ -1,5 +1,7 @@
 # mcp-nightscout
 
+[![M8ven Score](https://m8ven.ai/badge/mcp/lozit-mcp-nightscout-h4kjlt?v=f3840f8ea8ef0aff55485dc5000056ef)](https://m8ven.ai/mcp/lozit-mcp-nightscout-h4kjlt?s=readme)
+
 > **What** — an MCP server giving an AI assistant read-only access to a Nightscout instance: glucose readings and deterministic, server-side aggregates (mean, median, SD, CV, GMI, time-in-range bands).
 > **For** — people running their own Nightscout who want to discuss their data with an assistant without handing it write access.
 > **Deployed** — not deployed, and not published to npm. Runs locally over stdio.
