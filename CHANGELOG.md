@@ -44,6 +44,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   publiées une fois dans `devices` et référencées par index entier. Une charge utile hostile
   apparaît une fois au lieu de 288 sur une fenêtre de 24 h
   ([ADR 0005](docs/decisions/0005-free-text-neutralization.md))
+- Runtime dependencies bumped: `@modelcontextprotocol/sdk` 1.32.1, `zod` 4.6.5,
+  `@napi-rs/keyring` 2.1.0. The keyring major changes no call site here: an absent entry now
+  reads as `null` instead of throwing, which `readToken` already mapped to `null`
 
 ### Deprecated
 
@@ -64,6 +67,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   is 27 characters, below the 32-character floor a pattern-only redactor uses —
   value registration is what covers it.
 - All logging goes to stderr; stdout is the MCP JSON-RPC channel.
+- Transitive advisories resolved in the lockfile (`fast-uri`, `hono`, `proxy-addr`, `qs`,
+  `ip-address`, all pulled in by the MCP SDK) and `vitest` patched to 4.1.11. Most sat on the
+  SDK's HTTP transport, which this stdio-only server never loads. `npm audit`: 0.
 
 <!--
 ## [0.1.0] - YYYY-MM-DD
