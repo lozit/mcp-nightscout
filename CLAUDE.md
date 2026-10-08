@@ -213,7 +213,9 @@ This file is alive — but keep it a **map, not the territory**. It is loaded in
 
 ## Git workflow
 
-- **Branching**: **trunk-based** — commit straight to `main`, lean on tags and `/rewind`. Solo repo; no PR gate.
+- **Branching**: short-lived branches merged through a PR. GitHub protects `main` (PR required,
+  enforced for admins, 0 approvals): a direct `git push` to `main` is rejected. Commit locally,
+  push a branch, open the PR, merge once CI is green.
 - Only commit on **explicit request** (never auto-commit at end of task)
 - Verify no secrets or debug files are included before committing — in this repo that specifically means: nothing new from `intakes/`, no `.env`, no captured Nightscout payload containing a token or real glucose history.
 
